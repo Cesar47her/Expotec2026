@@ -9,6 +9,7 @@ import main.Admin.AdminCuenta.*;
 import main.Admin.AgregarNovedades.*;
 import main.Admin.Configuraciones.*;
 import main.Admin.RevisionComentarios.*;
+import main.AplicacionPrincipal;
 import main.Login.*;
 import main.Usuario.*;
 import main.Util.WindowManager;
@@ -33,8 +34,14 @@ public class PanelAdmin extends JFrame {
     private int mouseX, mouseY;
     private boolean esMaximizado = false;
     private Rectangle dimensionesPrevias;
+    private final AplicacionPrincipal aplicacion;
 
     public PanelAdmin() {
+        this(null);
+    }
+
+    public PanelAdmin(AplicacionPrincipal aplicacion) {
+        this.aplicacion = aplicacion;
         configurarVentana();
         main.Util.ContenedorVentana.pf_configurarVentana(this);
         inicializarComponentes();
@@ -51,6 +58,7 @@ public class PanelAdmin extends JFrame {
         setResizable(true);
 
         WindowManager.getInstance().register(this);
+        dimensionesPrevias = getBounds(); 
 
         panelFondo = new FondoAdminPanel();
         panelFondo.setLayout(null);
@@ -144,6 +152,9 @@ public class PanelAdmin extends JFrame {
             public void mouseClicked(MouseEvent e) {
                 if (mostrandoSubPanel) {
                     conmutarSubPanelAdministrador(false);
+                } else if (aplicacion != null) {
+                    aplicacion.mostrarMenu();
+                    dispose();
                 } else {
                     CyberpunkLogin login = new CyberpunkLogin();
                     login.setVisible(true);
@@ -153,7 +164,6 @@ public class PanelAdmin extends JFrame {
         });
         panelFondo.add(btnVolver);
 
-        // Se corrigió agregando el parámetro 'tipoIcono' requerido por tu nuevo constructor
         card1 = new TarjetasAdmin("ADMINISTRADOR", "DE CUENTAS", "GESTIÓN TOTAL DE USUARIOS", COLOR_CYAN, "ADMIN");
         card2 = new TarjetasAdmin("ACTUALIZACION", "DE MUSICA", "SISTEMA DE MUSIC CORE", COLOR_CYAN, "ACTUALIZAR");
         card3 = new TarjetasAdmin("REVISIÓN DE", "COMENTARIOS", "MODERACIÓN TERMINAL", COLOR_CYAN, "REVISION");
@@ -161,57 +171,64 @@ public class PanelAdmin extends JFrame {
         card5 = new TarjetasAdmin("AGREGAR", "NOVEDADES", "PATCH INJECTOR SYSTEM", COLOR_MAGENTA, "AGREGAR");
         card6 = new TarjetasAdmin("CONFIGURACIONES", "", "UI CUSTOMIZER ENGINE", COLOR_MAGENTA, "PERSONALIZAR");
 
+        // Tarjeta 1: Administrador de Cuentas
         card1.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                AdministradorCuentas AdminCuentas = new AdministradorCuentas();
+                AdministradorCuentas AdminCuentas = new AdministradorCuentas(PanelAdmin.this);
                 AdminCuentas.setVisible(true);
-                setVisible(false); 
+                setVisible(false);
             }
         });
 
+        // Tarjeta 2: Actualización de Música
         card2.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                PanelMusicaAdmin musicaAdmin = new PanelMusicaAdmin();
+                PanelMusicaAdmin musicaAdmin = new PanelMusicaAdmin(PanelAdmin.this);
                 musicaAdmin.setVisible(true);
-                setVisible(false); 
+                setVisible(false);
             }
         });
 
+        // Tarjeta 3: Revisión de Comentarios
         card3.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                PanelRevisionComentarios edicionMapas = new PanelRevisionComentarios();
-                edicionMapas.setVisible(true);
+                PanelRevisionComentarios revisionComentarios = new PanelRevisionComentarios(PanelAdmin.this);
+                revisionComentarios.setVisible(true);
                 setVisible(false);
             }
         });
         
+        // Tarjeta 4: Testing / Menú Usuario
         card4.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                MenuUsuario edicionMapas = new MenuUsuario();
-                edicionMapas.setVisible(true);
+                MenuUsuario menuUsuario = new MenuUsuario(PanelAdmin.this, 1);
+                menuUsuario.setVisible(true);
                 setVisible(false);
             }
         });
         
+        // Tarjeta 5: Agregar Novedades
         card5.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                Novedades edicionMapas = new Novedades();
-                edicionMapas.setVisible(true);
+                Novedades novedades = new Novedades(PanelAdmin.this);
+                novedades.setVisible(true);
                 setVisible(false);
             }
         });
 
+        // Tarjeta 6: Configuraciones (Ventana de Diálogo Modal)
         card6.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 Window padre = SwingUtilities.getWindowAncestor(card6);
-                ConfiguracionVenta ventanaConfig = new ConfiguracionVenta(padre);
+                ConfiguracionVenta ventanaConfig = new ConfiguracionVenta(padre, 1);
                 ventanaConfig.setVisible(true);
+                // Al ser modal, el flujo se detiene aquí y se reanuda al cerrarse. No requiere ocultarse.
             }
         });
 

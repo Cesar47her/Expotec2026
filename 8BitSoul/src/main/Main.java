@@ -1,12 +1,11 @@
 package main;
 
-import main.Login.*;
-import javax.swing.UIManager;
-import javax.swing.SwingUtilities;
-import main.Util.*;
-import java.util.*;
 import java.sql.*;
+import java.util.*;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import main.PantalladeCarga.*;
+import main.Util.*;
 
 public class Main {
 
@@ -68,19 +67,8 @@ public class Main {
 
         // --- LANZAMIENTO SEGURO DEL HILO DE LA PANTALLA DE CARGA ---
         SwingUtilities.invokeLater(() -> {
-            // 1. Instanciamos la ventana destino.
-            MenuPrincipal menuDestino = new MenuPrincipal();
-
-            // 2. Iniciamos la pantalla de carga pasándole el menú de destino
-            GlitchLoadingScreen inicio = new GlitchLoadingScreen(menuDestino);
-
-            // 3. PROPAGACIÓN DE IDENTIDAD: Aplicamos nombre e ícono usando la clase de utilidad
-            // (Asegúrate de haber creado primero la clase ContenedorVentana en main.Util)
-            main.Util.ContenedorVentana.pf_configurarVentana(inicio);
-            main.Util.ContenedorVentana.pf_configurarVentana(menuDestino);
-
-            // 4. Mostramos la pantalla de carga inicial
-            inicio.setVisible(true);
+            AplicacionPrincipal aplicacion = new AplicacionPrincipal();
+            main.Util.ContenedorVentana.pf_configurarVentana(aplicacion);
         });
     }
 }

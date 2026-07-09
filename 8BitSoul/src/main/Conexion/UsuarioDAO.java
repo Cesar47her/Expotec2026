@@ -38,6 +38,36 @@ public class UsuarioDAO {
     }
 
     /**
+     * Busca el id_usuario basándose en su correo electrónico.
+     * @param correo El correo electrónico del usuario.
+     * @return El ID numérico del usuario, o 0 si no se encuentra.
+     */
+    public int obtenerIdPorCorreo(String correo) {
+        int idUsuario = 0;
+        String sql = "SELECT id_usuario FROM USUARIO WHERE correo = ? AND estado_cuenta = 'ACTIVO'";
+        
+        ConexionSQL conexion = new ConexionSQL();
+        
+        try (Connection con = conexion.obtenerConexion();
+             PreparedStatement pstm = con.prepareStatement(sql)) {
+            
+            pstm.setString(1, correo);
+            
+            try (ResultSet rs = pstm.executeQuery()) {
+                if (rs.next()) {
+                    idUsuario = rs.getInt("id_usuario");
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("⚠️ [Error UsuarioDAO]: Error al intentar recuperar el ID por correo.");
+            e.printStackTrace();
+        }
+        
+        return idUsuario;
+    }
+
+    /**
      * Valida las credenciales unificando la tabla USUARIO con la tabla ROL.
      * @param username El nombre de usuario ingresado en el JTextField.
      * @param contrasena La contraseña ingresada en el JPasswordField.
@@ -59,6 +89,7 @@ public class UsuarioDAO {
             try (ResultSet rs = pstm.executeQuery()) {
                 if (rs.next()) {
                     String passwordHash = rs.getString("contrasena");
+                    // Validación segura por medio de PasswordUtil
                     if (PasswordUtil.verifyPassword(contrasena, passwordHash)) {
                         rolDetectado = rs.getString("nombre_rol");
                     }
@@ -103,6 +134,9 @@ public class UsuarioDAO {
         return username;
     }
 
+    /**
+     * Actualiza el correo electrónico y la contraseña hash de un usuario.
+     */
     public boolean actualizarCredenciales(int idUsuario, String nuevoEmail, String nuevaContrasena) {
         String sql = "UPDATE USUARIO SET correo = ?, contrasena = ? WHERE id_usuario = ?";
         ConexionSQL conexion = new ConexionSQL();
@@ -118,6 +152,29 @@ public class UsuarioDAO {
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             System.err.println("⚠️ [Error UsuarioDAO]: Fallo al actualizar credenciales.");
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Actualiza única y exclusivamente la contraseña de un usuario mediante su ID.
+     * Aplica el encriptado Hash seguro de forma transparente.
+     */
+    public boolean actualizarContrasena(int idUsuario, String nuevaContrasena) {
+        String sql = "UPDATE USUARIO SET contrasena = ? WHERE id_usuario = ?";
+        ConexionSQL conexion = new ConexionSQL();
+
+        try (Connection con = conexion.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            
+            String hashedPassword = PasswordUtil.hashPassword(nuevaContrasena);
+            ps.setString(1, hashedPassword);
+            ps.setInt(2, idUsuario);
+            
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            System.err.println("⚠️ [Error UsuarioDAO]: Fallo al reescribir contraseña en el sistema de recuperación.");
             e.printStackTrace();
             return false;
         }

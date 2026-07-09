@@ -1,10 +1,13 @@
 package main.Login;
 
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowEvent;
 import java.net.URL;
 import javax.swing.*;
 import javax.swing.text.AbstractDocument;
@@ -12,9 +15,9 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 import main.Admin.AdminCuenta.PerfilDAO;
-import main.Util.WindowManager;
+import main.AplicacionPrincipal;
 
-public class CyberpunkRegistro extends JFrame {
+public class CyberpunkRegistro extends JPanel {
 
     // Paleta de colores unificada con CyberpunkLogin
     public static final Color COLOR_CYAN = new Color(0, 240, 255);
@@ -32,23 +35,27 @@ public class CyberpunkRegistro extends JFrame {
     private Font smallPixelFont;
 
     private int mouseX, mouseY; 
+    private final AplicacionPrincipal aplicacion;
 
     public CyberpunkRegistro() {
+        this(null);
+    }
+
+    public CyberpunkRegistro(AplicacionPrincipal aplicacion) {
+        this.aplicacion = aplicacion;
         configurarVentana();
         inicializarComponentes();
         configurarEventos(); 
     }
 
     private void configurarVentana() {
-        setUndecorated(true); // Ventana plana sin bordes de Windows/OSX
-        setSize(900, 500);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setResizable(false);
+        setLayout(null);
+        setPreferredSize(new Dimension(900, 500));
 
         panelFondo = new RegistroBackgroundPanel();
         panelFondo.setLayout(null);
-        setContentPane(panelFondo);
+        panelFondo.setBounds(0, 0, 900, 500);
+        add(panelFondo);
         
         // Fuentes retro tipográficas
         try {
@@ -92,7 +99,14 @@ public class CyberpunkRegistro extends JFrame {
         btnCerrar.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { btnCerrar.setForeground(Color.RED); }
             @Override public void mouseExited(MouseEvent e) { btnCerrar.setForeground(COLOR_MAGENTA); }
-            @Override public void mouseClicked(MouseEvent e) { System.exit(0); }
+            @Override public void mouseClicked(MouseEvent e) {
+                Window window = SwingUtilities.getWindowAncestor(CyberpunkRegistro.this);
+                if (window != null) {
+                    window.dispatchEvent(new WindowEvent(window, WindowEvent.WINDOW_CLOSING));
+                } else {
+                    System.exit(0);
+                }
+            }
         });
         barraSuperior.add(btnCerrar);
 
@@ -138,7 +152,7 @@ public class CyberpunkRegistro extends JFrame {
         lblUser.setBounds(30, 65, 300, 20);
         contenedorCentral.add(lblUser);
 
-        txtUser = new RetroTextField(32);
+        txtUser = new RegistroRetroTextField(32);
         txtUser.setBounds(30, 85, 300, 38);
         contenedorCentral.add(txtUser);
 
@@ -149,7 +163,7 @@ public class CyberpunkRegistro extends JFrame {
         lblPass.setBounds(30, 135, 300, 20);
         contenedorCentral.add(lblPass);
 
-        txtPass = new RetroPasswordField(64);
+        txtPass = new RegistroRetroPasswordField(64);
         txtPass.setBounds(30, 155, 300, 38);
         contenedorCentral.add(txtPass);
 
@@ -160,12 +174,12 @@ public class CyberpunkRegistro extends JFrame {
         lblCorreo.setBounds(30, 205, 300, 20);
         contenedorCentral.add(lblCorreo);
 
-        txtCorreo = new RetroTextField(64);
+        txtCorreo = new RegistroRetroTextField(64);
         txtCorreo.setBounds(30, 225, 300, 38);
         contenedorCentral.add(txtCorreo);
 
         // Botón: Registrar
-        btnRegistrar = new RetroButton("REGISTRARSE");
+        btnRegistrar = new RegistroRetroButton("REGISTRARSE");
         btnRegistrar.setBounds(30, 300, 300, 45);
         btnRegistrar.setFont(pixelFont);
         contenedorCentral.add(btnRegistrar);
@@ -189,15 +203,15 @@ public class CyberpunkRegistro extends JFrame {
     }
 
     private void configurarEventos() {
-        // Evento volver
         btnVolver.addActionListener(e -> {
             System.out.println("[SYSTEM] Volviendo al menú raíz...");
-            MenuPrincipal menu = new MenuPrincipal();
-            menu.setVisible(true);
-            this.dispose();
+            if (aplicacion != null) {
+                aplicacion.mostrarMenu();
+            }
         });
 
-        // Evento Registrarse
+        configurarTeclado();
+
         btnRegistrar.addActionListener(e -> {
             String usuario = getUsuario().trim();
             String contrasena = getContrasena().trim();
@@ -217,9 +231,9 @@ public class CyberpunkRegistro extends JFrame {
                             "ÉXITO",
                             JOptionPane.INFORMATION_MESSAGE);
 
-                    MenuPrincipal menu = new MenuPrincipal();
-                    menu.setVisible(true);
-                    this.dispose();
+                    if (aplicacion != null) {
+                        aplicacion.mostrarMenu();
+                    }
                 } else {
                     JOptionPane.showMessageDialog(this,
                             "Error al registrar usuario.",
@@ -228,6 +242,37 @@ public class CyberpunkRegistro extends JFrame {
                 }
             }
         });
+    }
+
+    private void configurarTeclado() {
+        Action registrarAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (btnRegistrar != null && btnRegistrar.isEnabled()) {
+                    btnRegistrar.doClick();
+                }
+            }
+        };
+
+        txtUser.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "registrar");
+        txtUser.getActionMap().put("registrar", registrarAction);
+        txtPass.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "registrar");
+        txtPass.getActionMap().put("registrar", registrarAction);
+        txtCorreo.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "registrar");
+        txtCorreo.getActionMap().put("registrar", registrarAction);
+
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "volver");
+        getActionMap().put("volver", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (btnVolver != null) {
+                    btnVolver.doClick();
+                }
+            }
+        });
+
+        setFocusable(true);
+        setRequestFocusEnabled(true);
     }
 
     private boolean registrarUsuario(String usuario, String correo, String contrasena) {
@@ -256,10 +301,10 @@ public class CyberpunkRegistro extends JFrame {
 // COMPONENTES DE RENDERIZADO RETRO REUTILIZADOS
 // ============================================================
 
-class LengthRestrictedDocumentFilter extends DocumentFilter {
+class RegistroLengthRestrictedDocumentFilter extends DocumentFilter {
     private final int maxLength;
 
-    public LengthRestrictedDocumentFilter(int maxLength) {
+    public RegistroLengthRestrictedDocumentFilter(int maxLength) {
         this.maxLength = maxLength;
     }
 
@@ -292,20 +337,20 @@ class LengthRestrictedDocumentFilter extends DocumentFilter {
     }
 }
 
-class RetroTextField extends JTextField {
+class RegistroRetroTextField extends JTextField {
     private boolean focusActivo = false;
 
-    public RetroTextField() {
+    public RegistroRetroTextField() {
         this(32);
     }
 
-    public RetroTextField(int maxLength) {
+    public RegistroRetroTextField(int maxLength) {
         setOpaque(false);
         setForeground(Color.WHITE);
         setCaretColor(CyberpunkRegistro.COLOR_CYAN);
         setFont(new Font("Monospaced", Font.PLAIN, 14));
         setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-        ((AbstractDocument) getDocument()).setDocumentFilter(new LengthRestrictedDocumentFilter(maxLength));
+        ((AbstractDocument) getDocument()).setDocumentFilter(new RegistroLengthRestrictedDocumentFilter(maxLength));
 
         addFocusListener(new FocusAdapter() {
             @Override public void focusGained(FocusEvent e) { focusActivo = true; repaint(); }
@@ -332,20 +377,20 @@ class RetroTextField extends JTextField {
     }
 }
 
-class RetroPasswordField extends JPasswordField {
+class RegistroRetroPasswordField extends JPasswordField {
     private boolean focusActivo = false;
 
-    public RetroPasswordField() {
+    public RegistroRetroPasswordField() {
         this(64);
     }
 
-    public RetroPasswordField(int maxLength) {
+    public RegistroRetroPasswordField(int maxLength) {
         setOpaque(false);
         setForeground(Color.WHITE);
         setCaretColor(CyberpunkRegistro.COLOR_CYAN);
         setFont(new Font("Monospaced", Font.PLAIN, 14));
         setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-        ((AbstractDocument) getDocument()).setDocumentFilter(new LengthRestrictedDocumentFilter(maxLength));
+        ((AbstractDocument) getDocument()).setDocumentFilter(new RegistroLengthRestrictedDocumentFilter(maxLength));
 
         addFocusListener(new FocusAdapter() {
             @Override public void focusGained(FocusEvent e) { focusActivo = true; repaint(); }
@@ -372,9 +417,9 @@ class RetroPasswordField extends JPasswordField {
     }
 }
 
-class RetroButton extends JButton {
+class RegistroRetroButton extends JButton {
     private boolean mouseEncima = false;
-    public RetroButton(String text) {
+    public RegistroRetroButton(String text) {
         super(text);
         setContentAreaFilled(false);
         setBorderPainted(false);

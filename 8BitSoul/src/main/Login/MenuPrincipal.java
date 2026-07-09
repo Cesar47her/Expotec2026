@@ -1,20 +1,20 @@
 package main.Login;
 
 import java.awt.*;
-import java.awt.event.KeyAdapter;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
 import java.util.Random;
 import javax.swing.*;
-import main.Util.WindowManager;
+import main.AplicacionPrincipal;
 
-public class MenuPrincipal extends JFrame {
+public class MenuPrincipal extends JPanel {
     
-    private JButton btnCrearCuenta;
-    private JButton btnIniciarSesion;
-    private JButton btnInvitado;
+    private final JButton btnCrearCuenta;
+    private final JButton btnIniciarSesion;
+    private final JButton btnInvitado;
     private Font pixelFont;
     private Font smallPixelFont;
     
@@ -26,15 +26,16 @@ public class MenuPrincipal extends JFrame {
     private final int ESPACIADO_Y = 50; 
 
     private int mouseX, mouseY;
+    private final AplicacionPrincipal aplicacion;
 
     public MenuPrincipal() {
-        setUndecorated(true);
-        
-        setSize(960, 540); 
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setResizable(false);
-        
+        this(null);
+    }
+
+    public MenuPrincipal(AplicacionPrincipal aplicacion) {
+        this.aplicacion = aplicacion;
+        setLayout(null);
+        setPreferredSize(new Dimension(960, 540));
 
         try {
             pixelFont = new Font("Pixel Emulator", Font.BOLD, 20);
@@ -46,7 +47,8 @@ public class MenuPrincipal extends JFrame {
 
         BackgroundPanel panelFondo = new BackgroundPanel("/imagenes/FondoLogin.png"); 
         panelFondo.setLayout(null); 
-        setContentPane(panelFondo);
+        panelFondo.setBounds(0, 0, 960, 540);
+        add(panelFondo);
 
         // --- BARRA SUPERIOR PERSONALIZADA ---
         JPanel barraSuperior = new JPanel() {
@@ -120,23 +122,28 @@ public class MenuPrincipal extends JFrame {
         actualizarSeleccionVisual(false);
 
         this.setFocusable(true);
-        this.requestFocusInWindow();
-        this.addKeyListener(new KeyAdapter() {
+        this.setRequestFocusEnabled(true);
+        this.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "arriba");
+        this.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "abajo");
+        this.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "entrar");
+        this.getActionMap().put("arriba", new AbstractAction() {
             @Override
-            public void keyPressed(KeyEvent e) {
-                switch (e.getKeyCode()) {
-                    case KeyEvent.VK_UP:
-                        botonSeleccionado = (botonSeleccionado - 1 + TOTAL_BOTONES) % TOTAL_BOTONES;
-                        actualizarSeleccionVisual(false);
-                        break;
-                    case KeyEvent.VK_DOWN:
-                        botonSeleccionado = (botonSeleccionado + 1) % TOTAL_BOTONES;
-                        actualizarSeleccionVisual(false);
-                        break;
-                    case KeyEvent.VK_ENTER:
-                        ejecutarAccionBoton();
-                        break;
-                }
+            public void actionPerformed(ActionEvent e) {
+                botonSeleccionado = (botonSeleccionado - 1 + TOTAL_BOTONES) % TOTAL_BOTONES;
+                actualizarSeleccionVisual(false);
+            }
+        });
+        this.getActionMap().put("abajo", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                botonSeleccionado = (botonSeleccionado + 1) % TOTAL_BOTONES;
+                actualizarSeleccionVisual(false);
+            }
+        });
+        this.getActionMap().put("entrar", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                ejecutarAccionBoton();
             }
         });
 
@@ -188,6 +195,12 @@ public class MenuPrincipal extends JFrame {
         return new JButton[]{btnCrearCuenta, btnIniciarSesion, btnInvitado};
     }
 
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        SwingUtilities.invokeLater(() -> requestFocusInWindow());
+    }
+
     private void agregarEventosMouse(JButton boton, int indice) {
         boton.addMouseListener(new MouseAdapter() {
             @Override
@@ -223,26 +236,22 @@ public class MenuPrincipal extends JFrame {
         btnInvitado.setText(botonSeleccionado == 2 ? (glitchActivo ? "GU3ST_BYPASS//0" : "INGRESAR COMO INVITADO") : t3);
         btnInvitado.setForeground(botonSeleccionado == 2 ? neonActivo : cianInactivo);
 
-        getContentPane().repaint();
+        repaint();
     }
 
     private void ejecutarAccionBoton() {
         switch (botonSeleccionado) {
-            case 0: 
-                CyberpunkRegistro registroVentana = new CyberpunkRegistro();
-                main.Util.ContenedorVentana.pf_configurarVentana(registroVentana); // Mantiene el ícono en Registro
-                registroVentana.setVisible(true);
-                this.dispose(); 
-                break;
-            case 1: 
-                CyberpunkLogin loginVentana = new CyberpunkLogin();
-                main.Util.ContenedorVentana.pf_configurarVentana(loginVentana); // Mantiene el ícono en Login
-                loginVentana.setVisible(true);
-                this.dispose(); 
-                break;
-            case 2: 
-                JOptionPane.showMessageDialog(this, "Acceso concedido en modo de auditoría (Invitado).", "Bypass", JOptionPane.WARNING_MESSAGE);
-                break;
+            case 0 -> {
+                if (aplicacion != null) {
+                    aplicacion.mostrarRegistro();
+                }
+            }
+            case 1 -> {
+                if (aplicacion != null) {
+                    aplicacion.mostrarLogin();
+                }
+            }
+            case 2 -> JOptionPane.showMessageDialog(this, "Acceso concedido en modo de auditoría (Invitado).", "Bypass", JOptionPane.WARNING_MESSAGE);
         }
     }
 

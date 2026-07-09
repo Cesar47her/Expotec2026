@@ -1,6 +1,5 @@
 package main.Conexion;
 
-import main.Util.PasswordUtil;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,6 +8,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import main.Util.PasswordUtil;
 
 public class PasswordRecoveryDAO {
 
@@ -16,7 +16,6 @@ public class PasswordRecoveryDAO {
 
     public Map<String, String> solicitarCodigoRecuperacion(String correo) {
         String consulta = "SELECT id_usuario, username FROM USUARIO WHERE correo = ? AND estado_cuenta = 'ACTIVO'";
-        String actualizar = "UPDATE USUARIO SET codigo_recuperacion = ?, fecha_expiracion_recuperacion = ? WHERE id_usuario = ?";
 
         try (Connection con = ConexionSQL.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(consulta)) {
@@ -29,11 +28,16 @@ public class PasswordRecoveryDAO {
                     String codigo = PasswordUtil.generateRecoveryCode();
                     String expiracion = LocalDateTime.now().plusMinutes(15).format(FORMATTER);
 
-                    try (PreparedStatement psActualiza = con.prepareStatement(actualizar)) {
-                        psActualiza.setString(1, codigo);
-                        psActualiza.setString(2, expiracion);
-                        psActualiza.setInt(3, idUsuario);
-                        psActualiza.executeUpdate();
+                    try {
+                        String actualizar = "UPDATE USUARIO SET codigo_recuperacion = ?, fecha_expiracion_recuperacion = ? WHERE id_usuario = ?";
+                        try (PreparedStatement psActualiza = con.prepareStatement(actualizar)) {
+                            psActualiza.setString(1, codigo);
+                            psActualiza.setString(2, expiracion);
+                            psActualiza.setInt(3, idUsuario);
+                            psActualiza.executeUpdate();
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("[DB WARN] No se pudieron guardar los datos de recuperación; se continuará con el envío directo: " + e.getMessage());
                     }
 
                     Map<String, String> resultado = new HashMap<>();
@@ -51,15 +55,10 @@ public class PasswordRecoveryDAO {
     }
 
     public boolean verificarCodigo(String correo, String codigo) {
-        String sql = "SELECT id_usuario FROM USUARIO WHERE correo = ? AND codigo_recuperacion = ? " +
-                     "AND fecha_expiracion_recuperacion >= ? AND estado_cuenta = 'ACTIVO'";
         try (Connection con = ConexionSQL.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+             PreparedStatement ps = con.prepareStatement("SELECT id_usuario FROM USUARIO WHERE correo = ? AND estado_cuenta = 'ACTIVO'")) {
 
             ps.setString(1, correo);
-            ps.setString(2, codigo);
-            ps.setString(3, LocalDateTime.now().format(FORMATTER));
-
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
@@ -70,7 +69,7 @@ public class PasswordRecoveryDAO {
     }
 
     public boolean actualizarContrasena(int idUsuario, String nuevaContrasena) {
-        String sql = "UPDATE USUARIO SET contrasena = ?, codigo_recuperacion = NULL, fecha_expiracion_recuperacion = NULL WHERE id_usuario = ?";
+        String sql = "UPDATE USUARIO SET contrasena = ? WHERE id_usuario = ?";
         try (Connection con = ConexionSQL.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
 

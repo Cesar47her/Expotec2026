@@ -20,14 +20,14 @@ public class PanelMusicaAdmin extends JFrame {
     private final Color CYAN = new Color(0, 240, 255);
     private final Color MAGENTA = new Color(242, 5, 203);
     private final Color OSCURO = new Color(6, 12, 24);
-    private final Color CONTENEDOR_BG = new Color(11, 19, 36, 180); 
+    private final Color CONTENEDOR_BG = new Color(11, 19, 36, 180);
     private final Color COLOR_BARRA_BG = new Color(10, 20, 38, 230);
     private final Color TEXTO_MUTED = new Color(150, 160, 180);
-    
+
     private DefaultTableModel modeloTabla;
     private JTable tablaMusica;
     private JScrollPane scrollTabla;
-    
+
     // Campos de entrada
     private JTextField txtTitulo, txtArtista, txtCategoria;
     private JRadioButton rbAmbiental, rbEvento;
@@ -46,7 +46,17 @@ public class PanelMusicaAdmin extends JFrame {
     private JPanel panelIzquierdo, panelTabla, panelControles;
     private JButton btnGuardar, btnReproducir, btnDesconectar;
 
+    // Referencia al panel padre para evitar cierres de app y duplicación de memoria
+    private PanelAdmin panelAdminPadre;
+
     public PanelMusicaAdmin() {
+        configurarVentana();
+        main.Util.ContenedorVentana.pf_configurarVentana(this);
+        inicializarComponentes();
+    }
+
+    public PanelMusicaAdmin(PanelAdmin panelAdminPadre) {
+        this.panelAdminPadre = panelAdminPadre; // Guardamos la referencia original
         configurarVentana();
         main.Util.ContenedorVentana.pf_configurarVentana(this);
         inicializarComponentes();
@@ -58,7 +68,7 @@ public class PanelMusicaAdmin extends JFrame {
         setMinimumSize(new Dimension(1100, 650));
         setLocationRelativeTo(null);
         WindowManager.getInstance().register(this);
-        
+
         // Cargar imagen de fondo
         imagenFondo = new ImageIcon("src/imagenes/FondoCrud.png").getImage();
 
@@ -86,7 +96,7 @@ public class PanelMusicaAdmin extends JFrame {
         };
         mainBackground.setLayout(null);
         setContentPane(mainBackground);
-        
+
         getRootPane().setBorder(BorderFactory.createLineBorder(new Color(0, 240, 255, 60), 1));
     }
 
@@ -160,7 +170,7 @@ public class PanelMusicaAdmin extends JFrame {
         txtCategoria.setBounds(25, 245, 370, 35);
         panelIzquierdo.add(txtCategoria);
 
-        JButton btnSubir = crearBotonCyber("⬆ SUBIR ARCHIVO (WAV)", CYAN);
+        JButton btnSubir = crearBotonCyber("⬆ SELECCIONAR E INYECTAR ARCHIVO (WAV)", CYAN);
         btnSubir.setBounds(25, 315, 370, 45);
         btnSubir.addActionListener(e -> seleccionarArchivo());
         panelIzquierdo.add(btnSubir);
@@ -189,11 +199,16 @@ public class PanelMusicaAdmin extends JFrame {
         lblLista.setBounds(25, 15, 300, 20);
         panelTabla.add(lblLista);
 
-        String[] columnas = {"NÚMERO", "TÍTULO", "ARTISTA", "CATEGORÍA", "ESTADO"};
-        modeloTabla = new DefaultTableModel(columnas, 0);
+        String[] columnas = {"NÚMERO", "TÍTULO", "ARTISTA", "CATEGORÍA", "ESTADO", "ID_DB"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 4;
+            }
+        };
         tablaMusica = new JTable(modeloTabla);
         estilizarTabla();
-        
+
         scrollTabla = new JScrollPane(tablaMusica);
         scrollTabla.getViewport().setBackground(new Color(11, 19, 36, 120));
         scrollTabla.setOpaque(false);
@@ -250,31 +265,49 @@ public class PanelMusicaAdmin extends JFrame {
         panelRadio.add(rbAmbiental);
         panelRadio.add(rbEvento);
 
-        JLabel subAmbiental = new JLabel("PISTA");
+        JLabel subAmbiental = new JLabel("TIPO");
         subAmbiental.setFont(new Font("Monospaced", Font.PLAIN, 10));
         subAmbiental.setForeground(TEXTO_MUTED);
         subAmbiental.setBounds(40, 40, 100, 15);
         panelRadio.add(subAmbiental);
 
-        JLabel subEvento = new JLabel("PISTA");
+        JLabel subEvento = new JLabel("TIPO");
         subEvento.setFont(new Font("Monospaced", Font.PLAIN, 10));
         subEvento.setForeground(TEXTO_MUTED);
         subEvento.setBounds(190, 40, 100, 15);
         panelRadio.add(subEvento);
 
-        // Botones de Comando Inferiores
-        btnGuardar = crearBotonCyber("💾 GUARDAR CAMBIOS", CYAN);
+        // --- BOTONES DE COMANDO INFERIORES ---
+        btnGuardar = crearBotonCyber("💾 GUARDAR CAMBIOS ESTADO", CYAN);
+        btnGuardar.addActionListener(e -> guardarCambiosEstado());
         add(btnGuardar);
 
         btnReproducir = crearBotonCyber("▶ REPRODUCIR SELECCIONADA", CYAN);
+        btnReproducir.addActionListener(e -> reproducirSeleccionada());
         add(btnReproducir);
 
+        // CORREGIDO: Retorna al panel padre existente en vez de fabricar uno en limpio
         btnDesconectar = crearBotonCyber("DESCONECTAR PANEL", MAGENTA);
-btnDesconectar.addActionListener(e -> {
-    new PanelAdmin().setVisible(true);
-    dispose();
-});
+        btnDesconectar.addActionListener(e -> {
+            if (panelAdminPadre != null) {
+                panelAdminPadre.setVisible(true);
+            } else {
+                new PanelAdmin().setVisible(true);
+            }
+            dispose();
+        });
         add(btnDesconectar);
+
+        tablaMusica.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && tablaMusica.getSelectedRow() != -1) {
+                String artista = tablaMusica.getValueAt(tablaMusica.getSelectedRow(), 2).toString();
+                if (artista.equalsIgnoreCase("Evento Especial")) {
+                    rbEvento.setSelected(true);
+                } else {
+                    rbAmbiental.setSelected(true);
+                }
+            }
+        });
 
         this.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
@@ -317,6 +350,7 @@ btnDesconectar.addActionListener(e -> {
                 mouseX = e.getX();
                 mouseY = e.getY();
             }
+
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -335,8 +369,14 @@ btnDesconectar.addActionListener(e -> {
             }
         });
 
+        // CORREGIDO: El botón de cerrar (X) ahora regresa ordenadamente al panel principal en vez de matar la JVM.
         btnCerrar = crearBotonControl("X", MAGENTA);
-        btnCerrar.addActionListener(e -> System.exit(0));
+        btnCerrar.addActionListener(e -> {
+            if (panelAdminPadre != null) {
+                panelAdminPadre.setVisible(true);
+            }
+            dispose();
+        });
         barraSuperior.add(btnCerrar);
 
         btnMaximizar = crearBotonControl("⬜", CYAN);
@@ -359,9 +399,14 @@ btnDesconectar.addActionListener(e -> {
 
         btn.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) { btn.setForeground(colorHover); }
+            public void mouseEntered(MouseEvent e) {
+                btn.setForeground(colorHover);
+            }
+
             @Override
-            public void mouseExited(MouseEvent e) { btn.setForeground(TEXTO_MUTED); }
+            public void mouseExited(MouseEvent e) {
+                btn.setForeground(TEXTO_MUTED);
+            }
         });
         return btn;
     }
@@ -377,8 +422,8 @@ btnDesconectar.addActionListener(e -> {
             esMaximizado = false;
             btnMaximizar.setText("⬜");
         } else {
-            // CORREGIDO AQUÍ: Le faltaba la 'o'
-            dimensionesPrevias = getBounds(); 
+            // CORREGIDO COMPLETAMENTE: El typo de "dimensionsPrevias" ya no dará error
+            dimensionesPrevias = getBounds();
             Rectangle boundsMaximo = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
             setBounds(boundsMaximo);
             esMaximizado = true;
@@ -391,7 +436,6 @@ btnDesconectar.addActionListener(e -> {
         int w = getWidth();
         int h = getHeight();
 
-        // Barra Superior
         if (barraSuperior != null) {
             barraSuperior.setBounds(0, 0, w, 40);
             btnCerrar.setBounds(w - 45, 5, 35, 30);
@@ -399,24 +443,20 @@ btnDesconectar.addActionListener(e -> {
             btnMinimizar.setBounds(w - 125, 5, 35, 30);
         }
 
-        // Títulos de Cabecera
         lblMainTitulo.setBounds(30, 55, 400, 30);
         lblMainSubtitulo.setBounds(30, 85, 600, 20);
 
-        // Layout de Paneles Principales
         panelIzquierdo.setBounds(30, 120, 420, h - 225);
-        
+
         int panelDerW = w - 510;
-        panelTabla.setBounds(480, 120, panelDerW, (int)((h - 225) * 0.58));
-        
-        // Ajuste dinámico del ScrollPane de la Tabla
+        panelTabla.setBounds(480, 120, panelDerW, (int) ((h - 225) * 0.58));
+
         if (scrollTabla != null) {
             scrollTabla.setBounds(25, 45, panelDerW - 50, panelTabla.getHeight() - 65);
         }
 
         panelControles.setBounds(480, panelTabla.getY() + panelTabla.getHeight() + 20, panelDerW, (h - 225) - panelTabla.getHeight() - 20);
 
-        // Botones de acción inferiores
         btnDesconectar.setBounds(30, h - 65, 220, 40);
         btnGuardar.setBounds(w - 630, h - 65, 280, 40);
         btnReproducir.setBounds(w - 330, h - 65, 300, 40);
@@ -436,11 +476,15 @@ btnDesconectar.addActionListener(e -> {
         tablaMusica.setShowVerticalLines(false);
         tablaMusica.setOpaque(false);
 
+        tablaMusica.getColumnModel().getColumn(5).setMinWidth(0);
+        tablaMusica.getColumnModel().getColumn(5).setMaxWidth(0);
+        tablaMusica.getColumnModel().getColumn(5).setPreferredWidth(0);
+
         DefaultTableCellRenderer renderCentro = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (column == 4 && value != null) { 
+                if (column == 4 && value != null) {
                     setForeground(value.toString().equalsIgnoreCase("ACTIVO") ? CYAN : TEXTO_MUTED);
                 } else {
                     setForeground(Color.WHITE);
@@ -450,23 +494,22 @@ btnDesconectar.addActionListener(e -> {
         };
         renderCentro.setHorizontalAlignment(JLabel.CENTER);
         renderCentro.setOpaque(false);
-        
-        for (int i = 0; i < tablaMusica.getColumnCount(); i++) {
+
+        for (int i = 0; i < tablaMusica.getColumnCount() - 1; i++) {
             tablaMusica.getColumnModel().getColumn(i).setCellRenderer(renderCentro);
         }
-        
-        // Estilización de la Cabecera
+
         JTableHeader header = tablaMusica.getTableHeader();
         header.setOpaque(false);
-        header.setBackground(new Color(11, 19, 36, 230)); 
+        header.setBackground(new Color(11, 19, 36, 230));
         header.setForeground(CYAN);
         header.setFont(new Font("Monospaced", Font.BOLD, 12));
-        
+
         DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                setBackground(new Color(11, 19, 36)); 
+                setBackground(new Color(11, 19, 36));
                 setForeground(CYAN);
                 setFont(new Font("Monospaced", Font.BOLD, 12));
                 setHorizontalAlignment(JLabel.CENTER);
@@ -479,30 +522,43 @@ btnDesconectar.addActionListener(e -> {
 
     private void cargarDatosActuales() {
         modeloTabla.setRowCount(0);
-        String query = "SELECT id_protocol, file_path, estado FROM MUSICA";
-        main.Conexion.ConexionSQL conexionInstancia = new main.Conexion.ConexionSQL();
-        
-        try (ResultSet rs = conexionInstancia.consultarRegistros(query)) {
-            if (rs != null) {
-                int contador = 1;
-                while (rs.next()) {
-                    String ruta = rs.getString("file_path");
-                    String estado = rs.getString("estado");
-                    
-                    File f = new File(ruta);
-                    String nombreLimpio = f.getName().replace(".wav", "");
-                    
-                    modeloTabla.addRow(new Object[]{
-                        contador++, 
-                        nombreLimpio, 
-                        "Ambiental", 
-                        "General", 
-                        estado != null ? estado : "ACTIVO"
-                    });
-                    
-                    if (!ReproducirSonido.getListaCanciones().contains(ruta)) {
-                        ReproducirSonido.agregarCancionALista(ruta);
-                    }
+        String query = "SELECT id_protocol, file_path, estado, nombre_pista, artista, categoria FROM MUSICA";
+
+        try (Connection con = main.Conexion.ConexionSQL.obtenerConexion(); PreparedStatement ps = con.prepareStatement(query); ResultSet rs = ps.executeQuery()) {
+
+            int contador = 1;
+            while (rs.next()) {
+                String idProtocol = rs.getString("id_protocol");
+                String ruta = rs.getString("file_path");
+                String estado = rs.getString("estado");
+                String nombrePista = rs.getString("nombre_pista");
+                String artista = rs.getString("artista");
+                String categoria = rs.getString("categoria");
+
+                if (nombrePista == null || nombrePista.trim().isEmpty()) {
+                    nombrePista = new File(ruta).getName().replace(".wav", "");
+                }
+                if (artista == null || artista.trim().isEmpty()) {
+                    artista = "Ambiental";
+                }
+                if (categoria == null || categoria.trim().isEmpty()) {
+                    categoria = "General";
+                }
+                if (estado == null) {
+                    estado = "ACTIVO";
+                }
+
+                modeloTabla.addRow(new Object[]{
+                    contador++,
+                    nombrePista,
+                    artista,
+                    categoria,
+                    estado,
+                    idProtocol
+                });
+
+                if (!ReproducirSonido.getListaCanciones().contains(ruta)) {
+                    ReproducirSonido.agregarCancionALista(ruta);
                 }
             }
         } catch (Exception e) {
@@ -511,60 +567,124 @@ btnDesconectar.addActionListener(e -> {
     }
 
     private void seleccionarArchivo() {
-        final JFrame ventanaPadre = this; 
+        final JFrame ventanaPadre = this;
         JFileChooser selector = new JFileChooser();
         selector.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Audio Core (*.wav)", "wav"));
-        
-        if (selector.showOpenDialog(ventanaPadre) == 0) { 
+
+        if (selector.showOpenDialog(ventanaPadre) == JFileChooser.APPROVE_OPTION) {
             File archivoOriginal = selector.getSelectedFile();
             try {
-                File directorioDestino = new File("src/Music/General");
-                if (!directorioDestino.exists()) directorioDestino.mkdirs();
+                String subCarpeta = rbEvento.isSelected() ? "Eventos" : "General";
+                File directorioDestino = new File("src/Music/" + subCarpeta);
+                if (!directorioDestino.exists()) {
+                    directorioDestino.mkdirs();
+                }
 
                 File archivoDestino = new File(directorioDestino, archivoOriginal.getName());
                 java.nio.file.Files.copy(archivoOriginal.toPath(), archivoDestino.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
-                String rutaFormateadaDB = "src/Music/General/" + archivoOriginal.getName();
-                Connection con = main.Conexion.ConexionSQL.obtenerConexion();
-                
-                // CORRECCIÓN AQUÍ: Agregamos la columna 'nombre_pista' al INSERT
-                String query = "INSERT INTO MUSICA (id_protocol, file_path, estado, nombre_pista) VALUES (?, ?, ?, ?)";
-                
-                try (PreparedStatement ps = con.prepareStatement(query)) {
-                    int nuevoId = 100 + tablaMusica.getRowCount(); 
-                    
-                    // Extraer los valores que el usuario ingresó en las cajas de texto de la interfaz
-                    String tituloIngresado = txtTitulo.getText().trim();
-                    if (tituloIngresado.isEmpty()) {
-                        tituloIngresado = archivoOriginal.getName().replace(".wav", ""); // Respaldo si está vacío
-                    }
+                String rutaFormateadaDB = "src/Music/" + subCarpeta + "/" + archivoOriginal.getName();
+
+                String tituloIngresado = txtTitulo.getText().trim();
+                if (tituloIngresado.isEmpty()) {
+                    tituloIngresado = archivoOriginal.getName().replace(".wav", "");
+                }
+
+                String artistaIngresado = txtArtista.getText().trim();
+                if (artistaIngresado.isEmpty()) {
+                    artistaIngresado = rbEvento.isSelected() ? "Evento Especial" : "Ambiental";
+                }
+
+                String catIngresada = txtCategoria.getText().trim();
+                if (catIngresada.isEmpty()) {
+                    catIngresada = subCarpeta;
+                }
+
+                String query = "INSERT INTO MUSICA (id_protocol, file_path, estado, nombre_pista, artista, categoria) VALUES (?, ?, ?, ?, ?, ?)";
+
+                try (Connection con = main.Conexion.ConexionSQL.obtenerConexion(); PreparedStatement ps = con.prepareStatement(query)) {
+
+                    int nuevoId = 100 + tablaMusica.getRowCount();
 
                     ps.setString(1, "PROT_" + nuevoId);
                     ps.setString(2, rutaFormateadaDB);
                     ps.setString(3, "ACTIVO");
-                    ps.setString(4, tituloIngresado); // Enviamos el título esperado para 'nombre_pista'
-                    
+                    ps.setString(4, tituloIngresado);
+                    ps.setString(5, artistaIngresado);
+                    ps.setString(6, catIngresada);
+
                     ps.executeUpdate();
-                } 
+                }
 
                 ReproducirSonido.agregarCancionALista(rutaFormateadaDB);
-                
+
                 SwingUtilities.invokeLater(() -> {
-                    // Limpiar cajas de texto tras una inserción exitosa
                     txtTitulo.setText("");
                     txtArtista.setText("");
                     txtCategoria.setText("");
-                    
-                    cargarDatosActuales(); 
-                    JOptionPane.showMessageDialog(ventanaPadre, "⚡ AUDIO INYECTADO CORRECTAMENTE.", "SYSTEM CORE", JOptionPane.INFORMATION_MESSAGE);
+                    cargarDatosActuales();
+                    JOptionPane.showMessageDialog(ventanaPadre, "⚡ AUDIO INYECTADO CORRECTAMENTE AL SISTEMA.", "SYSTEM CORE", JOptionPane.INFORMATION_MESSAGE);
                 });
 
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(ventanaPadre, "❌ ERROR SQL CENTRAL.\n" + ex.getMessage(), "ERROR CRÍTICO", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(ventanaPadre, "❌ ERROR EN SISTEMA DE INYECCIÓN.\n" + ex.getMessage(), "ERROR CRÍTICO", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
-    
+
+    private void guardarCambiosEstado() {
+        int filaSeleccionada = tablaMusica.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "⚠️ SELECCIONE UNA PISTA DE LA TABLA PRIMERO.", "SYSTEM CORE", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String idProtocol = tablaMusica.getModel().getValueAt(filaSeleccionada, 5).toString();
+        String nuevoArtista = rbEvento.isSelected() ? "Evento Especial" : "Ambiental";
+
+        String query = "UPDATE MUSICA SET artista = ? WHERE id_protocol = ?";
+
+        try (Connection con = main.Conexion.ConexionSQL.obtenerConexion(); PreparedStatement ps = con.prepareStatement(query)) {
+
+            ps.setString(1, nuevoArtista);
+            ps.setString(2, idProtocol);
+            ps.executeUpdate();
+
+            JOptionPane.showMessageDialog(this, "⚡ PROTOCOLO ACTUALIZADO EN LA BASE DE DATOS.", "SYSTEM CORE", JOptionPane.INFORMATION_MESSAGE);
+            cargarDatosActuales();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "❌ ERROR AL GUARDAR CAMBIOS:\n" + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void reproducirSeleccionada() {
+        int filaSeleccionada = tablaMusica.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "⚠️ SELECCIONE UNA PISTA PARA REPRODUCIR.", "SYSTEM CORE", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String idProtocol = tablaMusica.getModel().getValueAt(filaSeleccionada, 5).toString();
+        String query = "SELECT file_path FROM MUSICA WHERE id_protocol = ?";
+
+        try (Connection con = main.Conexion.ConexionSQL.obtenerConexion(); PreparedStatement ps = con.prepareStatement(query)) {
+            ps.setString(1, idProtocol);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String ruta = rs.getString("file_path");
+                    File f = new File(ruta);
+                    if (f.exists()) {
+                        JOptionPane.showMessageDialog(this, "▶ REPRODUCIENDO CORE: " + f.getName(), "AUDIO PLAYER", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "❌ ARCHIVO FÍSICO NO ENCONTRADO EN: " + ruta, "ERROR", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "❌ ERROR DE REPRODUCCIÓN:\n" + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private JButton crearBotonCyber(String texto, Color neon) {
         JButton btn = new JButton(texto);
         btn.setFont(new Font("Monospaced", Font.BOLD, 13));
@@ -579,6 +699,7 @@ btnDesconectar.addActionListener(e -> {
                 btn.setOpaque(true);
                 btn.setBackground(new Color(neon.getRed(), neon.getGreen(), neon.getBlue(), 30));
             }
+
             public void mouseExited(java.awt.event.MouseEvent e) {
                 btn.setOpaque(false);
             }
@@ -587,6 +708,7 @@ btnDesconectar.addActionListener(e -> {
     }
 
     private class CyberTextField extends JTextField {
+
         public CyberTextField() {
             setOpaque(false);
             setCaretColor(CYAN);

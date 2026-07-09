@@ -1,4 +1,4 @@
-package main.Admin.AgregarNovedades;
+    package main.Admin.AgregarNovedades;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -39,8 +39,19 @@ public class Novedades extends JFrame {
     private File imagenSeleccionada = null; 
     
     private final NovedadesDAO novedadesDAO = new NovedadesDAO();
+    private PanelAdmin panelAdminPadre;
 
+    // Constructor por defecto
     public Novedades() {
+        configurarVentana();
+        main.Util.ContenedorVentana.pf_configurarVentana(this);
+        inicializarComponentes();
+        actualizarListaNoticias(); 
+    }
+
+    // Constructor con referencia al panel padre
+    public Novedades(PanelAdmin panelAdminPadre) {
+        this.panelAdminPadre = panelAdminPadre; // Guardamos la referencia correctamente
         configurarVentana();
         main.Util.ContenedorVentana.pf_configurarVentana(this);
         inicializarComponentes();
@@ -68,7 +79,6 @@ public class Novedades extends JFrame {
 
     // --- 2. DISPOSICIÓN DE CAPAS (Layouts) ---
     private void inicializarComponentes() {
-        // Panel contenedor principal (Sin márgenes internos para que la barra vaya de extremo a extremo)
         JPanel panelPrincipal = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
@@ -80,7 +90,6 @@ public class Novedades extends JFrame {
                     g.fillRect(0, 0, getWidth(), getHeight());
                 }
                 
-                // Borde neón exterior de punta a punta de la ventana
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setColor(COLOR_CIAN);
                 g2.setStroke(new BasicStroke(3f));
@@ -90,33 +99,26 @@ public class Novedades extends JFrame {
         };
         setContentPane(panelPrincipal);
 
-        // 1. Añadimos la Barra Superior de control directamente al Norte (Punta a punta)
         panelPrincipal.add(crearBarraVentanaPersonalizada(), BorderLayout.NORTH);
 
-        // 2. Creamos un contenedor interno para el resto de elementos que SÍ necesitan margen lateral
         JPanel panelCentralContenedor = new JPanel(new BorderLayout(20, 15));
         panelCentralContenedor.setOpaque(false);
-        // Aquí aplicamos los márgenes que quitamos del contenedor raíz (30 a los lados, 20 abajo, 15 arriba)
         panelCentralContenedor.setBorder(BorderFactory.createEmptyBorder(15, 30, 20, 30));
 
-        // Cabecera dentro del contenedor con margen
         panelCentralContenedor.add(crearCabecera(), BorderLayout.NORTH);
 
-        // Formulario y Listado distribuidos equitativamente
         JPanel panelContenido = new JPanel(new GridLayout(1, 2, 30, 0));
         panelContenido.setOpaque(false);
         panelContenido.add(crearPanelFormulario());
         panelContenido.add(crearPanelListaNoticias());
         panelCentralContenedor.add(panelContenido, BorderLayout.CENTER);
 
-        // Barra de botones inferior
         panelCentralContenedor.add(crearBarraInferior(), BorderLayout.SOUTH);
 
-        // Finalmente añadimos el contenedor intermedio en el centro del layout principal
         panelPrincipal.add(panelCentralContenedor, BorderLayout.CENTER);
     }
 
-    // --- BARRA SUPERIOR PERSONALIZADA (MINIMIZAR, MAXIMIZAR, CERRAR) ---
+    // --- BARRA SUPERIOR PERSONALIZADA ---
     private JPanel crearBarraVentanaPersonalizada() {
         JPanel barraControl = new JPanel(new BorderLayout()) {
             @Override
@@ -126,7 +128,6 @@ public class Novedades extends JFrame {
                 g2d.setColor(COLOR_BARRA_BG);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
 
-                // Línea cian inferior de separación
                 g2d.setColor(COLOR_CIAN);
                 g2d.setStroke(new BasicStroke(1.5f));
                 g2d.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
@@ -136,7 +137,6 @@ public class Novedades extends JFrame {
         barraControl.setOpaque(false);
         barraControl.setPreferredSize(new Dimension(getWidth(), 35));
 
-        // Lógica de arrastre
         barraControl.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent evt) {
@@ -161,13 +161,11 @@ public class Novedades extends JFrame {
             }
         });
 
-        // Título izquierdo alineado correctamente con un pequeño margen
         JLabel lblTag = new JLabel("  ⚡ BITSOUL NEWS TERMINAL // parches_y_novedades.log");
         lblTag.setFont(new Font("Monospaced", Font.BOLD, 12));
         lblTag.setForeground(new Color(0, 240, 255, 180));
         barraControl.add(lblTag, BorderLayout.WEST);
 
-        // Panel de botones derecho
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 2));
         panelBotones.setOpaque(false);
 
@@ -225,7 +223,7 @@ public class Novedades extends JFrame {
         JPanel textoHeader = new JPanel(new GridLayout(2, 1));
         textoHeader.setOpaque(false);
         
-        JLabel lblTitulo = new JLabel("PANEL DE NOVEDADES Y NOTICIAS");
+        JLabel lblTitulo = new JLabel("PANEL DE NOVEDADES Hall");
         lblTitulo.setFont(new Font(Font.MONOSPACED, Font.BOLD, 26));
         lblTitulo.setForeground(COLOR_CIAN);
         
@@ -493,9 +491,14 @@ public class Novedades extends JFrame {
         JButton btnVolver = new BotonCyberpunk("← VOLVER", COLOR_CIAN);
         btnVolver.setPreferredSize(new Dimension(120, 35));
         
+        // CORRECCIÓN AQUÍ: Reutiliza la ventana padre si fue inyectada en el constructor
         btnVolver.addActionListener(e -> {
-            PanelAdmin panelAdmin = new PanelAdmin();
-            panelAdmin.setVisible(true);
+            if (panelAdminPadre != null) {
+                panelAdminPadre.setVisible(true);
+            } else {
+                PanelAdmin panelAdmin = new PanelAdmin();
+                panelAdmin.setVisible(true);
+            }
             this.dispose();
         });
 
@@ -516,7 +519,7 @@ public class Novedades extends JFrame {
         return footer;
     }
 
-    // --- 4. CONTROLADORES Y LOGICA DE CARGA (Funciones) ---
+    // --- 4. CONTROLADORES Y LOGICA DE CARGA ---
     private void seleccionarImagen() {
         JFileChooser selector = new JFileChooser();
         selector.setDialogTitle("Seleccionar Ilustración BitSoul");

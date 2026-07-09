@@ -14,11 +14,9 @@ import main.Admin.*;
 import main.Util.WindowManager;
 
 public class AdministradorCuentas extends JFrame {
-// Colores de control añadidos localmente
 
     public static final Color COLOR_CYAN = new Color(0, 240, 255);
     public static final Color COLOR_MAGENTA = new Color(255, 0, 127);
-    // Paleta de Colores heredada y sincronizada
     public static final Color BG_DARK = new Color(5, 7, 22);
     public static final Color CYAN_NEON = new Color(0, 240, 255);
     public static final Color PINK_NEON = new Color(255, 0, 127);
@@ -44,7 +42,7 @@ public class AdministradorCuentas extends JFrame {
     private JPanel sidebar;
     private JPanel logoPanel;
     private JLabel toggleButton;
-    private JLabel btnRegresar; // Nuevo botón de regreso
+    private JLabel btnRegresar; 
 
     private List<JPanel> listaBotones = new ArrayList<>();
     private List<JLabel> listaEtiquetasSeccion = new ArrayList<>();
@@ -54,16 +52,25 @@ public class AdministradorCuentas extends JFrame {
     private JPanel subMenuCR;
     private JPanel subMenuRU;
     private JPanel subMenuReadOnly;
+    
+    // CORRECCIÓN: Guardar la referencia al panel administrador padre
+    private final PanelAdmin panelAdminPadre;
 
     public AdministradorCuentas() {
-        // 1. CONFIGURACIÓN DE VENTANA ESTILO CYBERPUNK (SIN BORDES NATIVOS)
+        this(null);
+    }
+
+    // CORRECCIÓN: Nuevo constructor que recibe y almacena el frame original
+    public AdministradorCuentas(PanelAdmin panelAdminPadre) {
+        this.panelAdminPadre = panelAdminPadre;
+        
         setUndecorated(true);
         main.Util.ContenedorVentana.pf_configurarVentana(this);
         setTitle("BIT SOUL - Cyberpunk Dashboard");
-        setSize(1200, 675); // Inicia en tamaño de ventana normal
+        setSize(1200, 675); 
         setMinimumSize(new Dimension(1024, 600));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null); // Centra la ventana normal en la pantalla
+        setLocationRelativeTo(null); 
         setResizable(true);
 
         WindowManager.getInstance().register(this);
@@ -97,7 +104,6 @@ public class AdministradorCuentas extends JFrame {
         mainBackground.setLayout(new BorderLayout());
         setContentPane(mainBackground);
 
-        // 2. CONSTRUCCIÓN DE LA BARRA SUPERIOR PERSONALIZADA
         construirBarraSuperior();
         mainBackground.add(barraSuperior, BorderLayout.NORTH);
 
@@ -105,7 +111,7 @@ public class AdministradorCuentas extends JFrame {
         containerPanel = new JPanel(cardLayout);
         containerPanel.setOpaque(false);
 
-        // Paneles Mock/Contenedores
+        // Inyección real de tus subpaneles
         containerPanel.add(new PanelInicio(), "INICIO");
         containerPanel.add(new PanelUsuario(), "USUARIO");
         containerPanel.add(new PanelPerfil(), "PERFIL");
@@ -135,7 +141,7 @@ public class AdministradorCuentas extends JFrame {
             if (!ordenNavegacionTeclado.isEmpty()) {
                 ordenNavegacionTeclado.get(0).requestFocusInWindow();
             }
-            recalcularBotonesControl(); // Ajuste inicial de posiciones de botones
+            recalcularBotonesControl(); 
         });
     }
 
@@ -164,7 +170,6 @@ public class AdministradorCuentas extends JFrame {
         lblTituloBarra.setBounds(20, 0, 600, 40);
         barraSuperior.add(lblTituloBarra);
 
-        // Controladores de arrastre y doble click de la ventana
         barraSuperior.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -183,15 +188,13 @@ public class AdministradorCuentas extends JFrame {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (esMaximizado) {
-                    // Si se arrastra estando maximizado, vuelve a ventana normal de inmediato
                     alternarMaximizacion();
-                    mouseX = getWidth() / 2; // Reajusta el mouse al centro relativo de la barra
+                    mouseX = getWidth() / 2; 
                 }
                 setLocation(e.getXOnScreen() - mouseX, e.getYOnScreen() - mouseY);
             }
         });
 
-        // Configuración de los 3 botones de control estándar (Cerrar, Maximizar, Minimizar)
         btnCerrar = crearBotonControl("X", COLOR_MAGENTA);
         btnCerrar.addActionListener(e -> System.exit(0));
         barraSuperior.add(btnCerrar);
@@ -204,7 +207,6 @@ public class AdministradorCuentas extends JFrame {
         btnMinimizar.addActionListener(e -> setExtendedState(JFrame.ICONIFIED));
         barraSuperior.add(btnMinimizar);
 
-        // Listener para reposicionar botones automáticamente al cambiar el tamaño de la ventana
         this.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
@@ -248,18 +250,14 @@ public class AdministradorCuentas extends JFrame {
             if (dimensionesPrevias != null) {
                 setBounds(dimensionesPrevias);
             } else {
-                setSize(1366, 768);
+                setSize(1200, 675);
                 setLocationRelativeTo(null);
             }
             esMaximizado = false;
             btnMaximizar.setText("⬜");
         } else {
-            // LÍNEA CON EL ERROR:
             dimensionesPrevias = getBounds();
-
-            // Limitador dinámico para no pasar encima de la barra de tareas de Windows/OS
-            Rectangle boundsMaximo = GraphicsEnvironment.getLocalGraphicsEnvironment()
-                    .getMaximumWindowBounds();
+            Rectangle boundsMaximo = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
             setBounds(boundsMaximo);
             esMaximizado = true;
             btnMaximizar.setText("🗗");
@@ -270,155 +268,147 @@ public class AdministradorCuentas extends JFrame {
     }
 
     private JPanel buildSidebarMenu() {
-    JPanel side = new JPanel() {
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2d = (Graphics2D) g.create();
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2d.setColor(new Color(3, 5, 16, 235));
-            g2d.fillRect(0, 0, getWidth(), getHeight());
-            g2d.setColor(PINK_NEON);
-            g2d.setStroke(new BasicStroke(1.5f));
-            g2d.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
-            g2d.dispose();
-        }
-    };
-    side.setOpaque(false);
-    side.setPreferredSize(new Dimension(230, 768)); // Ajustado a 230
-    side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
-
-    // CONTENEDOR DE BOTONES DE ACCIÓN (Hamburguesa y Regresar)
-    JPanel headerPanel = new JPanel(new BorderLayout());
-    headerPanel.setOpaque(false);
-    headerPanel.setMaximumSize(new Dimension(230, 85)); // Ajustado a 230
-
-    JPanel subHeaderLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-    subHeaderLeft.setOpaque(false);
-
-    // 1. Botón Hamburguesa
-    toggleButton = new JLabel(" ☰ ", SwingConstants.CENTER);
-    toggleButton.setFont(new Font("Dialog", Font.BOLD, 20));
-    toggleButton.setForeground(CYAN_NEON);
-    toggleButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-    toggleButton.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 10));
-
-    toggleButton.addMouseListener(new MouseAdapter() {
-        @Override
-        public void mouseClicked(MouseEvent e) {
-            toggleMenu();
-        }
-    });
-    subHeaderLeft.add(toggleButton);
-
-    // 2. NUEVO BOTÓN PARA REGRESAR A PANELADMIN
-    btnRegresar = new JLabel(" ⬅ ", SwingConstants.CENTER);
-    btnRegresar.setFont(new Font("Dialog", Font.BOLD, 18));
-    btnRegresar.setForeground(PINK_NEON);
-    btnRegresar.setCursor(new Cursor(Cursor.HAND_CURSOR));
-    btnRegresar.setBorder(BorderFactory.createEmptyBorder(15, 5, 15, 15));
-    btnRegresar.setToolTipText("Regresar al Panel de Admin");
-
-    btnRegresar.addMouseListener(new MouseAdapter() {
-        @Override
-        public void mouseClicked(MouseEvent e) {
-            // Cierra esta ventana y abre PanelAdmin
-            dispose();
-            SwingUtilities.invokeLater(() -> {
-                PanelAdmin panelAdmin = new PanelAdmin();
-                panelAdmin.setVisible(true);
-            });
-        }
-
-        @Override
-        public void mouseEntered(MouseEvent e) {
-            btnRegresar.setForeground(Color.WHITE);
-        }
-
-        @Override
-        public void mouseExited(MouseEvent e) {
-            btnRegresar.setForeground(PINK_NEON);
-        }
-    });
-    subHeaderLeft.add(btnRegresar);
-
-    headerPanel.add(subHeaderLeft, BorderLayout.WEST);
-
-    logoPanel = new JPanel() {
-        private Image imgLogo = new ImageIcon("src/imagenes/LogoCompleto.png").getImage();
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            if (imgLogo != null && imgLogo.getWidth(null) > 0 && !menuColapsado) {
-                Graphics2D g2d = (Graphics2D) g;
+        JPanel side = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-
-                double ratio = Math.min((double) (getWidth() - 10) / imgLogo.getWidth(this), (double) (getHeight() - 20) / imgLogo.getHeight(this));
-                int targetW = (int) (imgLogo.getWidth(this) * ratio);
-                int targetH = (int) (imgLogo.getHeight(this) * ratio);
-                g2d.drawImage(imgLogo, 10, (getHeight() - targetH) / 2, targetW, targetH, this);
+                g2d.setColor(new Color(3, 5, 16, 235));
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                g2d.setColor(PINK_NEON);
+                g2d.setStroke(new BasicStroke(1.5f));
+                g2d.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
+                g2d.dispose();
             }
-        }
-    };
-    logoPanel.setOpaque(false);
-    headerPanel.add(logoPanel, BorderLayout.CENTER);
-    side.add(headerPanel);
-    side.add(Box.createRigidArea(new Dimension(0, 10)));
+        };
+        side.setOpaque(false);
+        side.setPreferredSize(new Dimension(240, 768)); 
+        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
 
-    JPanel btnInicio = createMenuButton("🏠", "INICIO", "INICIO");
-    side.add(btnInicio);
-    currentSelectedButton = btnInicio;
-    ((JLabel) btnInicio.getComponent(0)).setForeground(CYAN_NEON);
-    side.add(Box.createRigidArea(new Dimension(0, 15)));
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+        headerPanel.setMaximumSize(new Dimension(280, 85)); 
 
-    // Acordeones descriptivos (Se ajustó el MaximumSize individual a 230)
-    JLabel lblCrud = createSectionLabel("CRUD GESTIÓN  ▼", "C-G  ▼", "CRUD GESTIÓN");
-    lblCrud.setMaximumSize(new Dimension(230, 30));
-    side.add(lblCrud);
-    subMenuCrud = createSubMenuContainer();
-    subMenuCrud.add(createMenuButton("👤", "USUARIO", "USUARIO"));
-    subMenuCrud.add(createMenuButton("🖼️", "PERFIL", "PERFIL"));
-    subMenuCrud.add(createMenuButton("⚙️", "CONFIGURACIÓN", "CONFIGURACION"));
-    subMenuCrud.add(createMenuButton("📄", "NOVEDADES", "NOVEDADES"));
-    side.add(subMenuCrud);
-    configurarDesplegable(lblCrud, subMenuCrud, "CRUD GESTIÓN");
+        JPanel subHeaderLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        subHeaderLeft.setOpaque(false);
 
-    JLabel lblCR = createSectionLabel("CREAR Y LEER (C-R)  ▼", "C-R  ▼", "CREAR Y LEER (C-R)");
-    lblCR.setMaximumSize(new Dimension(230, 30));
-    side.add(lblCR);
-    subMenuCR = createSubMenuContainer();
-    subMenuCR.add(createMenuButton("🛒", "HISTORIAL DE COMPRA", "HISTORIAL"));
-    subMenuCR.add(createMenuButton("📦", "INVENTARIO", "INVENTARIO"));
-    subMenuCR.add(createMenuButton("❓", "SOLICITUD DE AYUDA", "AYUDA"));
-    side.add(subMenuCR);
-    configurarDesplegable(lblCR, subMenuCR, "CREAR Y LEER (C-R)");
+        toggleButton = new JLabel(" ☰ ", SwingConstants.CENTER);
+        toggleButton.setFont(new Font("Dialog", Font.BOLD, 20));
+        toggleButton.setForeground(CYAN_NEON);
+        toggleButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        toggleButton.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 10));
+        toggleButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                toggleMenu();
+            }
+        });
+        subHeaderLeft.add(toggleButton);
 
-    JLabel lblRU = createSectionLabel("LEER ACTUALIZAR  ▼", "R-U  ▼", "LEER ACTUALIZAR");
-    lblRU.setMaximumSize(new Dimension(230, 30));
-    side.add(lblRU);
-    subMenuRU = createSubMenuContainer();
-    subMenuRU.add(createMenuButton("💳", "BILLETERA", "BILLETERA"));
-    subMenuRU.add(createMenuButton("⚔️", "EQUIPAMIENTO", "EQUIPAMIENTO"));
-    subMenuRU.add(createMenuButton("📈", "PROGRESO", "PROGRESO"));
-    side.add(subMenuRU);
-    configurarDesplegable(lblRU, subMenuRU, "LEER ACTUALIZAR");
+        btnRegresar = new JLabel(" <- ", SwingConstants.CENTER);
+        btnRegresar.setFont(new Font("Dialog", Font.BOLD, 18));
+        btnRegresar.setForeground(PINK_NEON);
+        btnRegresar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnRegresar.setBorder(BorderFactory.createEmptyBorder(15, 5, 15, 15));
+        btnRegresar.setToolTipText("Regresar al Panel de Admin");
+        btnRegresar.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                SwingUtilities.invokeLater(() -> {
+                    // CORRECCIÓN: Si el panel padre existe, lo volvemos a mostrar en lugar de crear uno nuevo vacío
+                    if (panelAdminPadre != null) {
+                        panelAdminPadre.setVisible(true);
+                    } else {
+                        PanelAdmin panelAdmin = new PanelAdmin();
+                        panelAdmin.setVisible(true);
+                    }
+                    dispose();
+                });
+            }
 
-    JLabel lblReadOnly = createSectionLabel("READ ONLY  ▼", "R-O  ▼", "READ ONLY");
-    lblReadOnly.setMaximumSize(new Dimension(230, 30));
-    side.add(lblReadOnly);
-    subMenuReadOnly = createSubMenuContainer();
-    subMenuReadOnly.add(createMenuButton("👑", "ROL", "ROL"));
-    subMenuReadOnly.add(createMenuButton("💎", "TIPO DE ÍTEM", "TIPO DE ÍTEM"));
-    subMenuReadOnly.add(createMenuButton("📊", "NIVEL", "NIVEL"));
-    subMenuReadOnly.add(createMenuButton("🎯", "DIFICULTAD", "DIFICULTAD"));
-    subMenuReadOnly.add(createMenuButton("📝", "ESTADO SOLICITUD", "ESTADO SOLICITUD"));
-    side.add(subMenuReadOnly);
-    configurarDesplegable(lblReadOnly, subMenuReadOnly, "READ ONLY");
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                btnRegresar.setForeground(Color.WHITE);
+            }
 
-    return side;
-}
+            @Override
+            public void mouseExited(MouseEvent e) {
+                btnRegresar.setForeground(PINK_NEON);
+            }
+        });
+        subHeaderLeft.add(btnRegresar);
+        headerPanel.add(subHeaderLeft, BorderLayout.WEST);
+
+        logoPanel = new JPanel() {
+            private Image imgLogo = new ImageIcon("src/imagenes/LogoCompleto.png").getImage();
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (imgLogo != null && imgLogo.getWidth(null) > 0 && !menuColapsado) {
+                    Graphics2D g2d = (Graphics2D) g;
+                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+                    double ratio = Math.min((double) (getWidth() - 10) / imgLogo.getWidth(this), (double) (getHeight() - 20) / imgLogo.getHeight(this));
+                    int targetW = (int) (imgLogo.getWidth(this) * ratio);
+                    int targetH = (int) (imgLogo.getHeight(this) * ratio);
+                    g2d.drawImage(imgLogo, 10, (getHeight() - targetH) / 2, targetW, targetH, this);
+                }
+            }
+        };
+        logoPanel.setOpaque(false);
+        headerPanel.add(logoPanel, BorderLayout.CENTER);
+        side.add(headerPanel);
+        side.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JPanel btnInicio = createMenuButton("🏠", "INICIO", "INICIO");
+        side.add(btnInicio);
+        currentSelectedButton = btnInicio;
+        ((JLabel) btnInicio.getComponent(0)).setForeground(CYAN_NEON);
+        side.add(Box.createRigidArea(new Dimension(0, 15)));
+
+        JLabel lblCrud = createSectionLabel("CRUD GESTIÓN  ▼", "C-G  ▼", "CRUD GESTIÓN");
+        side.add(lblCrud);
+        subMenuCrud = createSubMenuContainer();
+        subMenuCrud.add(createMenuButton("👤", "USUARIO", "USUARIO"));
+        subMenuCrud.add(createMenuButton("🖼️", "PERFIL", "PERFIL"));
+        subMenuCrud.add(createMenuButton("⚙️", "CONFIGURACIÓN", "CONFIGURACION"));
+        subMenuCrud.add(createMenuButton("📄", "NOVEDADES", "NOVEDADES"));
+        side.add(subMenuCrud);
+        configurarDesplegable(lblCrud, subMenuCrud, "CRUD GESTIÓN");
+
+        JLabel lblCR = createSectionLabel("CREAR Y LEER (C-R)  ▼", "C-R  ▼", "CREAR Y LEER (C-R)");
+        side.add(lblCR);
+        subMenuCR = createSubMenuContainer();
+        subMenuCR.add(createMenuButton("🛒", "HISTORIAL DE COMPRA", "HISTORIAL"));
+        subMenuCR.add(createMenuButton("📦", "INVENTARIO", "INVENTARIO"));
+        subMenuCR.add(createMenuButton("❓", "SOLICITUD DE AYUDA", "AYUDA"));
+        side.add(subMenuCR);
+        configurarDesplegable(lblCR, subMenuCR, "CREAR Y LEER (C-R)");
+
+        JLabel lblRU = createSectionLabel("LEER ACTUALIZAR  ▼", "R-U  ▼", "LEER ACTUALIZAR");
+        side.add(lblRU);
+        subMenuRU = createSubMenuContainer();
+        subMenuRU.add(createMenuButton("💳", "BILLETERA", "BILLETERA"));
+        subMenuRU.add(createMenuButton("⚔️", "EQUIPAMIENTO", "EQUIPAMIENTO"));
+        subMenuRU.add(createMenuButton("📈", "PROGRESO", "PROGRESO"));
+        side.add(subMenuRU);
+        configurarDesplegable(lblRU, subMenuRU, "LEER ACTUALIZAR");
+
+        JLabel lblReadOnly = createSectionLabel("READ ONLY  ▼", "R-O  ▼", "READ ONLY");
+        side.add(lblReadOnly);
+        subMenuReadOnly = createSubMenuContainer();
+        subMenuReadOnly.add(createMenuButton("👑", "ROL", "ROL"));
+        subMenuReadOnly.add(createMenuButton("💎", "TIPO DE ÍTEM", "TIPO DE ÍTEM"));
+        subMenuReadOnly.add(createMenuButton("📊", "NIVEL", "NIVEL"));
+        subMenuReadOnly.add(createMenuButton("🎯", "DIFICULTAD", "DIFICULTAD"));
+        subMenuReadOnly.add(createMenuButton("📝", "ESTADO SOLICITUD", "ESTADO SOLICITUD"));
+        side.add(subMenuReadOnly);
+        configurarDesplegable(lblReadOnly, subMenuReadOnly, "READ ONLY");
+
+        return side;
+    }
 
     private void configurarDesplegable(JLabel label, JPanel subMenu, String nombreBase) {
         label.addMouseListener(new MouseAdapter() {
@@ -443,9 +433,7 @@ public class AdministradorCuentas extends JFrame {
     }
 
     private void alternarSubMenu(JLabel label, JPanel subMenu, String nombreBase) {
-        if (menuColapsado) {
-            return;
-        }
+        if (menuColapsado) return;
         boolean estaVisible = subMenu.isVisible();
         subMenu.setVisible(!estaVisible);
         label.setText(nombreBase + (!estaVisible ? "  ▲" : "  ▼"));
@@ -484,14 +472,9 @@ public class AdministradorCuentas extends JFrame {
 
         label.addFocusListener(new FocusAdapter() {
             @Override
-            public void focusGained(FocusEvent e) {
-                label.setForeground(Color.WHITE);
-            }
-
+            public void focusGained(FocusEvent e) { label.setForeground(Color.WHITE); }
             @Override
-            public void focusLost(FocusEvent e) {
-                label.setForeground(PINK_NEON);
-            }
+            public void focusLost(FocusEvent e) { label.setForeground(PINK_NEON); }
         });
         listaEtiquetasSeccion.add(label);
         return label;
@@ -542,17 +525,12 @@ public class AdministradorCuentas extends JFrame {
         btn.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (currentSelectedButton != btn) {
-                    label.setForeground(Color.WHITE);
-                }
+                if (currentSelectedButton != btn) label.setForeground(Color.WHITE);
                 btn.repaint();
             }
-
             @Override
             public void focusLost(FocusEvent e) {
-                if (currentSelectedButton != btn) {
-                    label.setForeground(TEXT_MUTED);
-                }
+                if (currentSelectedButton != btn) label.setForeground(TEXT_MUTED);
                 btn.repaint();
             }
         });
@@ -561,18 +539,12 @@ public class AdministradorCuentas extends JFrame {
             @Override
             public void mouseEntered(MouseEvent e) {
                 btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                if (currentSelectedButton != btn) {
-                    label.setForeground(Color.WHITE);
-                }
+                if (currentSelectedButton != btn) label.setForeground(Color.WHITE);
             }
-
             @Override
             public void mouseExited(MouseEvent e) {
-                if (currentSelectedButton != btn && !btn.hasFocus()) {
-                    label.setForeground(TEXT_MUTED);
-                }
+                if (currentSelectedButton != btn && !btn.hasFocus()) label.setForeground(TEXT_MUTED);
             }
-
             @Override
             public void mousePressed(MouseEvent e) {
                 btn.requestFocusInWindow();
@@ -605,7 +577,6 @@ public class AdministradorCuentas extends JFrame {
         if (menuColapsado) {
             sidebar.setPreferredSize(new Dimension(70, 768));
             toggleButton.setText(" ☰ ");
-            // Ocultamos el botón regresar visualmente si se colapsa el menú para cuidar la estética cyberpunk compacta
             btnRegresar.setVisible(false);
 
             subMenuCrud.setVisible(false);
@@ -623,9 +594,9 @@ public class AdministradorCuentas extends JFrame {
                 section.setBorder(BorderFactory.createEmptyBorder(8, 15, 5, 0));
             }
         } else {
-            sidebar.setPreferredSize(new Dimension(280, 768));
+            sidebar.setPreferredSize(new Dimension(240, 768));
             toggleButton.setText(" ☰ ");
-            btnRegresar.setVisible(true); // Reaparece al expandirse
+            btnRegresar.setVisible(true);
 
             for (JPanel btn : listaBotones) {
                 JLabel lbl = (JLabel) btn.getComponent(0);
@@ -647,13 +618,9 @@ public class AdministradorCuentas extends JFrame {
         ordenNavegacionTeclado.clear();
         for (Component comp : sidebar.getComponents()) {
             if (comp instanceof JPanel && listaBotones.contains(comp)) {
-                if (comp.isVisible()) {
-                    ordenNavegacionTeclado.add(comp);
-                }
+                if (comp.isVisible()) ordenNavegacionTeclado.add(comp);
             } else if (comp instanceof JLabel && listaEtiquetasSeccion.contains(comp)) {
-                if (comp.isVisible()) {
-                    ordenNavegacionTeclado.add(comp);
-                }
+                if (comp.isVisible()) ordenNavegacionTeclado.add(comp);
             } else if (comp instanceof JPanel && !comp.isOpaque()) {
                 JPanel subContainer = (JPanel) comp;
                 if (subContainer.isVisible()) {
@@ -675,17 +642,13 @@ public class AdministradorCuentas extends JFrame {
         im.put(KeyStroke.getKeyStroke("DOWN"), "navegarAbajo");
         am.put("navegarAbajo", new AbstractAction() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                moverFocoTeclado(1);
-            }
+            public void actionPerformed(ActionEvent e) { moverFocoTeclado(1); }
         });
 
         im.put(KeyStroke.getKeyStroke("UP"), "navegarArriba");
         am.put("navegarArriba", new AbstractAction() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                moverFocoTeclado(-1);
-            }
+            public void actionPerformed(ActionEvent e) { moverFocoTeclado(-1); }
         });
 
         im.put(KeyStroke.getKeyStroke("RIGHT"), "abrirOExpandir");
@@ -731,9 +694,7 @@ public class AdministradorCuentas extends JFrame {
     }
 
     private void moverFocoTeclado(int direccion) {
-        if (ordenNavegacionTeclado.isEmpty()) {
-            return;
-        }
+        if (ordenNavegacionTeclado.isEmpty()) return;
 
         Component focoActual = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
         int indexActual = ordenNavegacionTeclado.indexOf(focoActual);
@@ -743,12 +704,8 @@ public class AdministradorCuentas extends JFrame {
         }
 
         int siguienteIndex = indexActual + direccion;
-        if (siguienteIndex >= ordenNavegacionTeclado.size()) {
-            siguienteIndex = 0;
-        }
-        if (siguienteIndex < 0) {
-            siguienteIndex = ordenNavegacionTeclado.size() - 1;
-        }
+        if (siguienteIndex >= ordenNavegacionTeclado.size()) siguienteIndex = 0;
+        if (siguienteIndex < 0) siguienteIndex = ordenNavegacionTeclado.size() - 1;
 
         Component objetivo = ordenNavegacionTeclado.get(siguienteIndex);
         if (objetivo != null) {
@@ -762,18 +719,10 @@ public class AdministradorCuentas extends JFrame {
     private void gestionarSubmenuPorTeclado(JLabel label, Boolean forzarAbrir) {
         JPanel subMenuObjetivo = null;
         String nombre = (String) label.getClientProperty("nombreBase");
-        if ("CRUD GESTIÓN".equals(nombre)) {
-            subMenuObjetivo = subMenuCrud;
-        }
-        if ("CREAR Y LEER (C-R)".equals(nombre)) {
-            subMenuObjetivo = subMenuCR;
-        }
-        if ("LEER ACTUALIZAR".equals(nombre)) {
-            subMenuObjetivo = subMenuRU;
-        }
-        if ("READ ONLY".equals(nombre)) {
-            subMenuObjetivo = subMenuReadOnly;
-        }
+        if ("CRUD GESTIÓN".equals(nombre)) subMenuObjetivo = subMenuCrud;
+        if ("CREAR Y LEER (C-R)".equals(nombre)) subMenuObjetivo = subMenuCR;
+        if ("LEER ACTUALIZAR".equals(nombre)) subMenuObjetivo = subMenuRU;
+        if ("READ ONLY".equals(nombre)) subMenuObjetivo = subMenuReadOnly;
 
         if (subMenuObjetivo != null) {
             boolean visible = subMenuObjetivo.isVisible();
@@ -783,18 +732,13 @@ public class AdministradorCuentas extends JFrame {
         }
     }
 
-    private JPanel createMockPanel(String text) {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setOpaque(false);
-        JLabel lbl = new JLabel(text, SwingConstants.CENTER);
-        lbl.setForeground(CYAN_NEON);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 28));
-        p.add(lbl, BorderLayout.CENTER);
-        return p;
-    }
-
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception e) {
+                System.err.println("Error Look and Feel");
+            }
             new AdministradorCuentas().setVisible(true);
         });
     }

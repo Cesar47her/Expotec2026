@@ -1,6 +1,7 @@
 package main.Login;
 
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -13,19 +14,17 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 import main.Admin.Configuraciones.ConfiguracionDAO;
 import main.Admin.Configuraciones.ConfiguracionUsuario;
-import main.Admin.PanelAdmin;
-import main.Conexion.PasswordRecoveryDAO;
+import main.AplicacionPrincipal;
 import main.Conexion.UsuarioDAO;
-import main.PantalladeCarga.GlitchLoadingScreen1;
-import main.Usuario.*;
 import main.Util.*;
 
-public class CyberpunkLogin extends JFrame {
+public class CyberpunkLogin extends JPanel {
 
     public static final Color COLOR_CYAN = new Color(0, 240, 255);
     public static final Color COLOR_MAGENTA = new Color(242, 5, 203);
     public static final Color COLOR_TEXT_LIGHT = new Color(220, 245, 255);
-    public static final Color COLOR_BOX_BG = new Color(6, 12, 24, 230);
+    public static final Color COLOR_BOX_BG = new Color(6, 12, 24, 230); 
+    public static final Color COLOR_DARK_BG = new Color(6, 12, 24);
 
     private JTextField txtUser;
     private JPasswordField txtPass;
@@ -36,32 +35,81 @@ public class CyberpunkLogin extends JFrame {
     private Font pixelFont;
     private Font smallPixelFont;
 
+    // Componentes del panel de recuperación integrado
+    private JPanel contenedorCentral;
+    private JPanel panelRecuperacion;
+    private JLabel lblRecuperarTitulo;
+    private JLabel lblRecuperarInstrucciones;
+    private JTextField txtRecuperarInput;
+    private JButton btnRecuperarAccion;
+    private JButton btnRecuperarCancelar;
+    
+    // Estado del protocolo de recuperación: 1 = Email, 2 = Código Token, 3 = Nueva Clave, 4 = Fin Exitoso
+    private int estadoRecuperacion = 1; 
+    private String correoTemporal = "";
+    private String tokenTemporal = "";
+    private int idUsuarioTemporal = 0;
+
     private int mouseX, mouseY;
+    private final AplicacionPrincipal aplicacion;
 
     public CyberpunkLogin() {
+        this(null);
+    }
+
+    public CyberpunkLogin(AplicacionPrincipal aplicacion) {
+        this.aplicacion = aplicacion;
         configurarVentana();
         inicializarComponentes();
+        inicializarPanelRecuperacion();
         configureEventos();
     }
 
-    private void configurarVentana() {
-        setUndecorated(true);
-        setSize(900, 500);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setResizable(false);
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        JRootPane root = SwingUtilities.getRootPane(this);
+        if (root != null) {
+            root.setDefaultButton(btnLogin);
+        }
+        if (txtUser != null) {
+            txtUser.setText("");
+            txtUser.requestFocusInWindow();
+        }
+        if (txtPass != null) {
+            txtPass.setText("");
+        }
+        revalidate();
+        repaint();
+    }
 
-        
+    @Override
+    public void setVisible(boolean aFlag) {
+        super.setVisible(aFlag);
+        if (aFlag) {
+            if (txtUser != null) txtUser.setText("");
+            if (txtPass != null) txtPass.setText("");
+            ocultarPanelRecuperacion();
+            revalidate();
+            repaint();
+        }
+    }
+
+    private void configurarVentana() {
+        setLayout(null);
+        setOpaque(false); 
+        setPreferredSize(new Dimension(900, 500));
 
         panelFondo = new LoginBackgroundPanel();
         panelFondo.setLayout(null);
-        setContentPane(panelFondo);
+        panelFondo.setBounds(0, 0, 900, 500);
+        add(panelFondo);
 
         JPanel barraSuperior = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                g.setColor(new Color(6, 12, 24));
+                g.setColor(COLOR_DARK_BG);
                 g.fillRect(0, 0, getWidth(), getHeight());
                 g.setColor(COLOR_CYAN);
                 g.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
@@ -95,43 +143,34 @@ public class CyberpunkLogin extends JFrame {
         btnCerrar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         btnCerrar.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                btnCerrar.setForeground(Color.RED);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                btnCerrar.setForeground(COLOR_MAGENTA);
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                System.exit(0);
-            }
+            @Override public void mouseEntered(MouseEvent e) { btnCerrar.setForeground(Color.RED); }
+            @Override public void mouseExited(MouseEvent e) { btnCerrar.setForeground(COLOR_MAGENTA); }
+            @Override public void mouseClicked(MouseEvent e) { System.exit(0); }
         });
         barraSuperior.add(btnCerrar);
 
         barraSuperior.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
+            @Override public void mousePressed(MouseEvent e) {
                 mouseX = e.getX();
                 mouseY = e.getY();
             }
         });
         barraSuperior.addMouseMotionListener(new MouseAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                setLocation(e.getXOnScreen() - mouseX, e.getYOnScreen() - mouseY);
+            @Override public void mouseDragged(MouseEvent e) {
+                Window window = SwingUtilities.getWindowAncestor(CyberpunkLogin.this);
+                if (window != null) {
+                    window.setLocation(e.getXOnScreen() - mouseX, e.getYOnScreen() - mouseY);
+                }
             }
         });
     }
 
     private void inicializarComponentes() {
-        JPanel contenedorCentral = new JPanel() {
+        contenedorCentral = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2d.setColor(COLOR_BOX_BG);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
                 g2d.setColor(COLOR_CYAN);
@@ -141,6 +180,7 @@ public class CyberpunkLogin extends JFrame {
             }
         };
         contenedorCentral.setLayout(null);
+        contenedorCentral.setOpaque(false); 
         contenedorCentral.setBounds(270, 70, 360, 340);
         panelFondo.add(contenedorCentral);
 
@@ -157,7 +197,7 @@ public class CyberpunkLogin extends JFrame {
         lblUser.setBounds(30, 80, 300, 20);
         contenedorCentral.add(lblUser);
 
-        txtUser = new RetroTextField(32);
+        txtUser = new LoginRetroTextField(32);
         txtUser.setBounds(30, 105, 300, 38);
         contenedorCentral.add(txtUser);
 
@@ -167,11 +207,11 @@ public class CyberpunkLogin extends JFrame {
         lblPass.setBounds(30, 160, 300, 20);
         contenedorCentral.add(lblPass);
 
-        txtPass = new RetroPasswordField(64);
+        txtPass = new LoginRetroPasswordField(64);
         txtPass.setBounds(30, 185, 300, 38);
         contenedorCentral.add(txtPass);
 
-        btnLogin = new RetroButton("INGRESAR");
+        btnLogin = new LoginRetroButton("INGRESAR");
         btnLogin.setBounds(30, 255, 300, 45);
         btnLogin.setFont(pixelFont);
         contenedorCentral.add(btnLogin);
@@ -187,15 +227,8 @@ public class CyberpunkLogin extends JFrame {
         btnVolver.setHorizontalAlignment(SwingConstants.LEFT);
 
         btnVolver.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                btnVolver.setForeground(COLOR_CYAN);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                btnVolver.setForeground(COLOR_TEXT_LIGHT);
-            }
+            @Override public void mouseEntered(MouseEvent e) { btnVolver.setForeground(COLOR_CYAN); }
+            @Override public void mouseExited(MouseEvent e) { btnVolver.setForeground(COLOR_TEXT_LIGHT); }
         });
         panelFondo.add(btnVolver);
 
@@ -210,139 +243,245 @@ public class CyberpunkLogin extends JFrame {
         btnRecuperar.setHorizontalAlignment(SwingConstants.RIGHT);
 
         btnRecuperar.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                btnRecuperar.setForeground(COLOR_MAGENTA);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                btnRecuperar.setForeground(COLOR_TEXT_LIGHT);
-            }
+            @Override public void mouseEntered(MouseEvent e) { btnRecuperar.setForeground(COLOR_MAGENTA); }
+            @Override public void mouseExited(MouseEvent e) { btnRecuperar.setForeground(COLOR_TEXT_LIGHT); }
         });
         panelFondo.add(btnRecuperar);
     }
 
+    private void inicializarPanelRecuperacion() {
+        panelRecuperacion = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(COLOR_BOX_BG);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                g2d.setColor(COLOR_MAGENTA); 
+                g2d.setStroke(new BasicStroke(2.0f));
+                g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+                g2d.dispose();
+            }
+        };
+        panelRecuperacion.setLayout(null);
+        panelRecuperacion.setOpaque(false);
+        panelRecuperacion.setBounds(270, 70, 360, 340); 
+        panelRecuperacion.setVisible(false); 
+        panelFondo.add(panelRecuperacion);
+
+        lblRecuperarTitulo = new JLabel("NÚCLEO DE RECUPERACIÓN");
+        lblRecuperarTitulo.setFont(pixelFont.deriveFont(Font.BOLD, 14f));
+        lblRecuperarTitulo.setForeground(COLOR_MAGENTA);
+        lblRecuperarTitulo.setBounds(20, 25, 320, 25);
+        lblRecuperarTitulo.setHorizontalAlignment(SwingConstants.CENTER);
+        panelRecuperacion.add(lblRecuperarTitulo);
+
+        lblRecuperarInstrucciones = new JLabel("<html><center>Introduce tu correo registrado para generar un token efímero:</center></html>");
+        lblRecuperarInstrucciones.setFont(smallPixelFont.deriveFont(11f));
+        lblRecuperarInstrucciones.setForeground(COLOR_TEXT_LIGHT);
+        lblRecuperarInstrucciones.setBounds(30, 65, 300, 50);
+        lblRecuperarInstrucciones.setHorizontalAlignment(SwingConstants.CENTER);
+        panelRecuperacion.add(lblRecuperarInstrucciones);
+
+        txtRecuperarInput = new LoginRetroTextField(64);
+        txtRecuperarInput.setBounds(30, 140, 300, 38);
+        panelRecuperacion.add(txtRecuperarInput);
+
+        btnRecuperarAccion = new LoginRetroButton("GENERAR LLAVE");
+        btnRecuperarAccion.setBounds(30, 210, 300, 40);
+        btnRecuperarAccion.setFont(pixelFont.deriveFont(13f));
+        panelRecuperacion.add(btnRecuperarAccion);
+
+        btnRecuperarCancelar = new JButton("[ CANCELAR PROTOCOLO ]");
+        btnRecuperarCancelar.setFont(smallPixelFont.deriveFont(10f));
+        btnRecuperarCancelar.setForeground(Color.GRAY);
+        btnRecuperarCancelar.setContentAreaFilled(false);
+        btnRecuperarCancelar.setBorderPainted(false);
+        btnRecuperarCancelar.setFocusPainted(false);
+        btnRecuperarCancelar.setBounds(30, 275, 300, 30);
+        btnRecuperarCancelar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        
+        btnRecuperarCancelar.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { btnRecuperarCancelar.setForeground(Color.RED); }
+            @Override public void mouseExited(MouseEvent e) { btnRecuperarCancelar.setForeground(Color.GRAY); }
+        });
+        panelRecuperacion.add(btnRecuperarCancelar);
+    }
+
+    private void mostrarPanelRecuperacion() {
+        contenedorCentral.setVisible(false);
+        estadoRecuperacion = 1;
+        correoTemporal = "";
+        tokenTemporal = "";
+        idUsuarioTemporal = 0;
+        
+        lblRecuperarTitulo.setText("NÚCLEO DE RECUPERACIÓN");
+        lblRecuperarTitulo.setForeground(COLOR_MAGENTA);
+        lblRecuperarInstrucciones.setText("<html><center>Introduce tu correo registrado para generar un token efímero:</center></html>");
+        txtRecuperarInput.setText("");
+        btnRecuperarAccion.setText("GENERAR LLAVE");
+        btnRecuperarAccion.setEnabled(true);
+        
+        panelRecuperacion.setVisible(true);
+        txtRecuperarInput.requestFocusInWindow();
+        repaint();
+    }
+
+    private void ocultarPanelRecuperacion() {
+        panelRecuperacion.setVisible(false);
+        contenedorCentral.setVisible(true);
+        txtUser.requestFocusInWindow();
+        repaint();
+    }
+
     private void configureEventos() {
         btnVolver.addActionListener(e -> {
-            System.out.println("[SYSTEM] Interrumpiendo protocolo de autenticación. Regresando al menú raíz...");
-            MenuPrincipal menu = new MenuPrincipal();
-            menu.setVisible(true);
-            this.dispose();
+            if (aplicacion != null) aplicacion.mostrarMenu();
         });
 
-        btnRecuperar.addActionListener(e -> {
-            String correoInput = JOptionPane.showInputDialog(this,
-                    "SISTEMA DE RECOVERY:\nEscribe tu correo electrónico registrado para restaurar acceso:",
-                    "RECUPERAR CREDENCIALES", JOptionPane.QUESTION_MESSAGE);
+        configurarTeclado();
 
-            if (correoInput != null && !correoInput.trim().isEmpty()) {
-                String correoFinal = correoInput.trim();
+        btnRecuperar.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                mostrarPanelRecuperacion();
+            }
+        });
 
-                btnRecuperar.setEnabled(false);
-                System.out.println("[SYSTEM] Iniciando protocolo de recuperación de credenciales para: " + correoFinal);
+        btnRecuperarCancelar.addActionListener(e -> ocultarPanelRecuperacion());
+
+        btnRecuperarAccion.addActionListener(e -> {
+            String input = txtRecuperarInput.getText().trim();
+            if (input.isEmpty()) return;
+
+            // ==========================================
+            // ESTADO 1: Validar Correo y Enviar SMTP
+            // ==========================================
+            if (estadoRecuperacion == 1) { 
+                btnRecuperarAccion.setEnabled(false);
+                btnRecuperarAccion.setText("TRANSMITIENDO...");
 
                 SwingWorker<Boolean, Void> recoveryWorker = new SwingWorker<>() {
                     private String username = null;
-                    private String codigo = null;
-                    private int idUsuario = 0;
-
+                    
                     @Override
                     protected Boolean doInBackground() throws Exception {
-                        PasswordRecoveryDAO recoveryDAO = new PasswordRecoveryDAO();
-                        var datosRecuperacion = recoveryDAO.solicitarCodigoRecuperacion(correoFinal);
+                        UsuarioDAO usuarioDAO = new UsuarioDAO();
+                        idUsuarioTemporal = usuarioDAO.obtenerIdPorCorreo(input); 
+                        
+                        if (idUsuarioTemporal <= 0) return false;
 
-                        if (datosRecuperacion != null) {
-                            username = datosRecuperacion.get("username");
-                            codigo = datosRecuperacion.get("codigo");
-                            idUsuario = Integer.parseInt(datosRecuperacion.get("idUsuario"));
-                            return ServicioCorreo.enviarCodigoRecuperacion(correoFinal, username, codigo);
-                        }
-                        return false;
+                        username = usuarioDAO.obtenerUsernamePorCorreo(input);
+                        if (username == null || username.isEmpty()) username = "Operador";
+
+                        int randomToken = (int) (Math.random() * 900000) + 100000;
+                        tokenTemporal = String.valueOf(randomToken);
+                        correoTemporal = input;
+
+                        System.out.println("[SYSTEM] Token generado en memoria: " + tokenTemporal);
+                        return ServicioCorreo.enviarCodigoRecuperacion(correoTemporal, username, tokenTemporal);
                     }
 
                     @Override
                     protected void done() {
                         try {
-                            boolean exitoProtocolo = get();
-                            if (exitoProtocolo) {
-                                String codigoIngresado = JOptionPane.showInputDialog(CyberpunkLogin.this,
-                                        "Se ha enviado un código de recuperación a tu correo. Introduce ese código para continuar:",
-                                        "VALIDAR CÓDIGO DE RECUPERACION", JOptionPane.QUESTION_MESSAGE);
-
-                                if (codigoIngresado != null && !codigoIngresado.trim().isEmpty()) {
-                                    PasswordRecoveryDAO recoveryDAO = new PasswordRecoveryDAO();
-                                    boolean codigoValido = recoveryDAO.verificarCodigo(correoFinal, codigoIngresado.trim());
-
-                                    if (codigoValido) {
-                                        String nuevaContrasena = JOptionPane.showInputDialog(CyberpunkLogin.this,
-                                                "Código validado. Ingresa tu nueva contraseña:",
-                                                "RESTABLECER CONTRASEÑA", JOptionPane.QUESTION_MESSAGE);
-                                        if (nuevaContrasena != null && !nuevaContrasena.trim().isEmpty()) {
-                                            if (recoveryDAO.actualizarContrasena(idUsuario, nuevaContrasena.trim())) {
-                                                JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                                        "⚡ Tu contraseña ha sido restablecida correctamente.",
-                                                        "RECOVERY EXITOSO", JOptionPane.INFORMATION_MESSAGE);
-                                            } else {
-                                                JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                                        "No se pudo actualizar la contraseña en el servidor.",
-                                                        "ERROR DE ACTUALIZACIÓN", JOptionPane.ERROR_MESSAGE);
-                                            }
-                                        } else {
-                                            JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                                    "No se ingresó una nueva contraseña.",
-                                                    "RECOVERY CANCELADO", JOptionPane.WARNING_MESSAGE);
-                                        }
-                                    } else {
-                                        JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                                "El código ingresado no es válido o expiró.",
-                                                "CODIGO INVALIDO", JOptionPane.ERROR_MESSAGE);
-                                    }
-                                }
+                            if (get()) {
+                                estadoRecuperacion = 2; 
+                                lblRecuperarTitulo.setText("VERIFICACIÓN DE LLAVE");
+                                lblRecuperarTitulo.setForeground(COLOR_CYAN);
+                                lblRecuperarInstrucciones.setText("<html><center><font color='#00f0ff'>ÉXITO SMTP.</font><br>Introduce el código de 6 dígitos enviado a tu terminal:</center></html>");
+                                txtRecuperarInput.setText("");
+                                btnRecuperarAccion.setText("VERIFICAR CÓDIGO");
                             } else {
-                                JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                        "❌ [FALLO DE ENLACE DE CODIGO]\nEl correo electrónico no se encuentra registrado o el puerto SMTP falló.",
-                                        "ERROR DE VALIDACIÓN", JOptionPane.ERROR_MESSAGE);
+                                lblRecuperarInstrucciones.setText("<html><center><font color='red'>ERROR:</font> Correo inexistente o falla de red.</center></html>");
+                                btnRecuperarAccion.setText("GENERAR LLAVE");
                             }
                         } catch (Exception ex) {
-                            System.err.println("[CRITICAL] Error capturado en el hilo de recuperación asíncrona:");
                             ex.printStackTrace();
-                            JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                    "Error crítico en la secuencia de recuperación asíncrona.\nRevisa la terminal de salida.",
-                                    "NET_CORE_EXCEPTION", JOptionPane.ERROR_MESSAGE);
+                            lblRecuperarInstrucciones.setText("<html><center><font color='red'>ERROR CRÍTICO:</font> Fallo de conexión hilos.</center></html>");
+                            btnRecuperarAccion.setText("GENERAR LLAVE");
                         } finally {
-                            btnRecuperar.setEnabled(true);
+                            btnRecuperarAccion.setEnabled(true);
                         }
                     }
                 };
                 recoveryWorker.execute();
+
+            // ==========================================
+            // ESTADO 2: Validar Token en memoria
+            // ==========================================
+            } else if (estadoRecuperacion == 2) { 
+                if (tokenTemporal.equals(input)) {
+                    estadoRecuperacion = 3; 
+                    lblRecuperarTitulo.setText("REESCRITURA DE CREDENCIALES");
+                    lblRecuperarTitulo.setForeground(Color.GREEN);
+                    lblRecuperarInstrucciones.setText("<html><center>Código validado.<br>Ingresa tu nueva contraseña de acceso:</center></html>");
+                    txtRecuperarInput.setText("");
+                    btnRecuperarAccion.setText("ACTUALIZAR RED");
+                } else {
+                    lblRecuperarInstrucciones.setText("<html><center><font color='red'>ERROR:</font> Token inválido. Verifica de nuevo.</center></html>");
+                }
+
+            // ==========================================
+            // ESTADO 3: Persistir Contraseña final
+            // ==========================================
+            } else if (estadoRecuperacion == 3) { 
+                btnRecuperarAccion.setEnabled(false);
+                btnRecuperarAccion.setText("GUARDANDO...");
+
+                SwingWorker<Boolean, Void> updateWorker = new SwingWorker<>() {
+                    @Override
+                    protected Boolean doInBackground() throws Exception {
+                        UsuarioDAO usuarioDAO = new UsuarioDAO();
+                        return usuarioDAO.actualizarContrasena(idUsuarioTemporal, input);
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            if (get()) {
+                                lblRecuperarInstrucciones.setText("<html><center><font color='green'>⚡ CAMBIO COMPLETADO.</font><br>Tu clave ha sido reescrita con éxito.</center></html>");
+                                btnRecuperarAccion.setText("CERRAR PANEL");
+                                estadoRecuperacion = 4; 
+                            } else {
+                                lblRecuperarInstrucciones.setText("<html><center><font color='red'>ERROR CRÍTICO:</font> Fallo de escritura en DB.</center></html>");
+                                btnRecuperarAccion.setText("ACTUALIZAR RED");
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                            btnRecuperarAccion.setText("ACTUALIZAR RED");
+                        } finally {
+                            btnRecuperarAccion.setEnabled(true);
+                        }
+                    }
+                };
+                updateWorker.execute();
+                
+            // ==========================================
+            // ESTADO 4: Salida Limpia del Panel
+            // ==========================================
+            } else if (estadoRecuperacion == 4) {
+                ocultarPanelRecuperacion(); 
             }
         });
 
+        // EVENTO LOGIN NORMAL MODIFICADO PARA LLAMAR PANTALLA DE CARGA
         btnLogin.addActionListener(e -> {
             String usuario = txtUser.getText().trim();
             String contrasena = new String(txtPass.getPassword()).trim();
 
-            if (usuario.isEmpty() || contrasena.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Por favor complete todos los campos.", "AVISO", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+            if (usuario.isEmpty() || contrasena.isEmpty()) return;
 
             btnLogin.setEnabled(false);
             btnLogin.setText("CONECTANDO AL NÚCLEO...");
 
             SwingWorker<String, Void> loginWorker = new SwingWorker<>() {
-                private int idUsuarioDetectado = 0; // Almacenará el ID dinámico real
+                private int idUsuarioDetectado = 0;
 
                 @Override
                 protected String doInBackground() throws Exception {
                     UsuarioDAO usuarioConsultor = new UsuarioDAO();
-                    
-                    // --- MODIFICACIÓN CLAVE: Obtenemos el ID real del usuario desde la BD ---
-                    // Nota: Si tu método 'autenticarUsuario' solo devuelve el String del rol, deberías tener
-                    // un método alternativo en tu UsuarioDAO como 'obtenerIdPorUsername(usuario)' para guardar el ID real.
                     idUsuarioDetectado = usuarioConsultor.obtenerIdPorUsername(usuario); 
-                    
                     return usuarioConsultor.autenticarUsuario(usuario, contrasena);
                 }
 
@@ -350,55 +489,61 @@ public class CyberpunkLogin extends JFrame {
                 protected void done() {
                     try {
                         String rol = get();
-
                         if (rol != null) {
                             rol = rol.trim();
-                            System.out.println("[SYSTEM] Acceso autorizado. Inicializando entorno para ID: " + idUsuarioDetectado + " con Rol: '" + rol + "'");
-
                             ConfiguracionDAO configDAO = new ConfiguracionDAO();
-                            // --- ARREGLO AQUÍ: Ahora busca dinámicamente usando el ID real obtenido ---
                             ConfiguracionUsuario configUsuario = configDAO.obtenerPorUsuario(idUsuarioDetectado);
 
-                            double volumen = 0.5; // Valor por defecto
+                            double volumen = 0.5; 
                             if (configUsuario != null) {
                                 volumen = configUsuario.getVolumenAudio();
-                                System.out.println("[AUDIO SYSTEM] Volumen ajustado según persistencia a: " + (volumen * 100) + "%");
-                            } else {
-                                System.out.println("[AUDIO SYSTEM] Configuración no encontrada para ID " + idUsuarioDetectado + ". Usando volumen por defecto (50%).");
                             }
-
                             ReproducirSonido.asignarVolumen(volumen);
 
-                            JFrame ventanaDestino = null;
+                            // Obtener la ventana actual (JFrame) para ocultarla
+                            Window ventanaActual = SwingUtilities.getWindowAncestor(CyberpunkLogin.this);
+                            JFrame frameActual = (ventanaActual instanceof JFrame) ? (JFrame) ventanaActual : null;
 
-                            if (rol.equalsIgnoreCase("ADMINISTRADOR")) {
-                                ventanaDestino = new PanelAdmin();
-                            } else if (rol.equalsIgnoreCase("USUARIO_CORE")) {
-                                // --- ARREGLO AQUÍ: Enviamos el ID detectado directamente al constructor para que herede las propiedades ---
-                                ventanaDestino = new MenuUsuario(idUsuarioDetectado);
-                            }
+                            final int idUsuario = idUsuarioDetectado;
+                            final String rolFinal = rol;
 
-                            if (ventanaDestino != null) {
-                                GlitchLoadingScreen1 loadingScreen = new GlitchLoadingScreen1(ventanaDestino);
-                                loadingScreen.setVisible(true);
-                                CyberpunkLogin.this.dispose();
+                            if (frameActual != null) {
+                                frameActual.setVisible(false);
+
+                                // Crear ventana proxy intermedia que reaccionará al temporizador de la pantalla de carga
+                                JFrame destinoFinal = new JFrame() {
+                                    @Override
+                                    public void setVisible(boolean b) {
+                                        if (b) {
+                                            if (rolFinal.equalsIgnoreCase("ADMINISTRADOR")) {
+                                                if (aplicacion != null) aplicacion.mostrarAdmin();
+                                            } else if (rolFinal.equalsIgnoreCase("USUARIO_CORE")) {
+                                                if (aplicacion != null) aplicacion.mostrarUsuario(idUsuario);
+                                            }
+                                            this.dispose(); // Destrucción inmediata del proxy temporal
+                                        }
+                                    }
+                                };
+
+                                // Disparar la pantalla de carga pasándole el destino condicionalizado
+                                main.PantalladeCarga.GlitchLoadingScreen1 pantallaCarga = 
+                                    new main.PantalladeCarga.GlitchLoadingScreen1(destinoFinal);
+                                pantallaCarga.setVisible(true);
+
                             } else {
-                                JOptionPane.showMessageDialog(CyberpunkLogin.this,
-                                        "El rol asignado ('" + rol + "') no tiene definida una interfaz destino.",
-                                        "ERROR DE ENTORNO", JOptionPane.ERROR_MESSAGE);
-                                btnLogin.setEnabled(true);
-                                btnLogin.setText("INGRESAR");
+                                // Flujo de respaldo directo si no se puede hallar el contenedor superior
+                                if (rol.equalsIgnoreCase("ADMINISTRADOR")) {
+                                    if (aplicacion != null) aplicacion.mostrarAdmin();
+                                } else if (rol.equalsIgnoreCase("USUARIO_CORE")) {
+                                    if (aplicacion != null) aplicacion.mostrarUsuario(idUsuarioDetectado);
+                                }
                             }
-
                         } else {
-                            JOptionPane.showMessageDialog(CyberpunkLogin.this, "Usuario o contraseña incorrectos, o cuenta inactiva.", "ERROR", JOptionPane.ERROR_MESSAGE);
-                            btnLogin.setEnabled(true);
-                            btnLogin.setText("INGRESAR");
+                            JOptionPane.showMessageDialog(CyberpunkLogin.this, "Credenciales Inválidas o Error de Firma Hash.", "ERROR DE ACCESO", JOptionPane.ERROR_MESSAGE);
                         }
                     } catch (Exception ex) {
-                        System.err.println("[CRITICAL] Error en loginWorker:");
                         ex.printStackTrace();
-                        JOptionPane.showMessageDialog(CyberpunkLogin.this, "Fallo crítico al inicializar el entorno de usuario.", "SYSTEM ERROR", JOptionPane.ERROR_MESSAGE);
+                    } finally {
                         btnLogin.setEnabled(true);
                         btnLogin.setText("INGRESAR");
                     }
@@ -407,130 +552,120 @@ public class CyberpunkLogin extends JFrame {
             loginWorker.execute();
         });
     }
+
+    private void configurarTeclado() {
+        Action loginAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (btnLogin != null && btnLogin.isEnabled() && contenedorCentral.isVisible()) {
+                    btnLogin.doClick();
+                } else if (panelRecuperacion.isVisible() && btnRecuperarAccion.isEnabled()) {
+                    btnRecuperarAccion.doClick();
+                }
+            }
+        };
+
+        txtUser.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "login");
+        txtUser.getActionMap().put("login", loginAction);
+        txtPass.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "login");
+        txtPass.getActionMap().put("login", loginAction);
+        txtRecuperarInput.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "login");
+        txtRecuperarInput.getActionMap().put("login", loginAction);
+
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "volver");
+        getActionMap().put("volver", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (panelRecuperacion.isVisible()) {
+                    ocultarPanelRecuperacion();
+                } else if (btnVolver != null) {
+                    btnVolver.doClick();
+                }
+            }
+        });
+    }
 }
 
 // ============================================================
-// COMPONENTES DE RENDERIZADO RETRO (Se mantienen intactos)
+// COMPONENTES DE RENDERIZADO RETRO
 // ============================================================
-class LengthRestrictedDocumentFilter extends DocumentFilter {
+class LoginLengthRestrictedDocumentFilter extends DocumentFilter {
     private final int maxLength;
-
-    public LengthRestrictedDocumentFilter(int maxLength) {
-        this.maxLength = maxLength;
-    }
+    public LoginLengthRestrictedDocumentFilter(int maxLength) { this.maxLength = maxLength; }
 
     @Override
     public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
-        if (string == null) {
-            return;
-        }
-        int currentLength = fb.getDocument().getLength();
-        int newLength = currentLength + string.length();
-        if (newLength <= maxLength) {
-            super.insertString(fb, offset, string, attr);
-        } else if (currentLength < maxLength) {
-            super.insertString(fb, offset, string.substring(0, maxLength - currentLength), attr);
-        }
+        if (string == null) return;
+        if ((fb.getDocument().getLength() + string.length()) <= maxLength) { super.insertString(fb, offset, string, attr); }
     }
-
     @Override
     public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
-        if (text == null) {
-            return;
-        }
-        int currentLength = fb.getDocument().getLength();
-        int newLength = currentLength - length + text.length();
-        if (newLength <= maxLength) {
-            super.replace(fb, offset, length, text, attrs);
-        } else if (currentLength < maxLength) {
-            super.replace(fb, offset, length, text.substring(0, maxLength - (currentLength - length)), attrs);
-        }
+        if (text == null) return;
+        if ((fb.getDocument().getLength() - length + text.length()) <= maxLength) { super.replace(fb, offset, length, text, attrs); }
     }
 }
 
-class RetroTextField extends JTextField {
+class LoginRetroTextField extends JTextField {
     private boolean focusActivo = false;
-
-    public RetroTextField() {
-        this(32);
-    }
-
-    public RetroTextField(int maxLength) {
+    public LoginRetroTextField(int maxLength) {
         super();
         setOpaque(false);
         setForeground(Color.WHITE);
         setCaretColor(CyberpunkLogin.COLOR_CYAN);
         setFont(new Font("Monospaced", Font.PLAIN, 14));
         setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-        ((AbstractDocument) getDocument()).setDocumentFilter(new LengthRestrictedDocumentFilter(maxLength));
+        ((AbstractDocument) getDocument()).setDocumentFilter(new LoginLengthRestrictedDocumentFilter(maxLength));
         addFocusListener(new FocusAdapter() {
             @Override public void focusGained(FocusEvent e) { focusActivo = true; repaint(); }
             @Override public void focusLost(FocusEvent e) { focusActivo = false; repaint(); }
         });
     }
-
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setColor(new Color(12, 18, 30));
         g2d.fillRect(0, 0, getWidth(), getHeight());
-        if (focusActivo) {
-            g2d.setColor(CyberpunkLogin.COLOR_MAGENTA);
-            g2d.setStroke(new BasicStroke(2.0f));
-        } else {
-            g2d.setColor(new Color(0, 240, 255, 120));
-            g2d.setStroke(new BasicStroke(1.0f));
-        }
+        g2d.setColor(focusActivo ? CyberpunkLogin.COLOR_MAGENTA : new Color(0, 240, 255, 120));
+        g2d.setStroke(new BasicStroke(focusActivo ? 2.0f : 1.0f));
         g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
         g2d.dispose();
         super.paintComponent(g);
     }
 }
 
-class RetroPasswordField extends JPasswordField {
+class LoginRetroPasswordField extends JPasswordField {
     private boolean focusActivo = false;
-
-    public RetroPasswordField() {
-        this(64);
-    }
-
-    public RetroPasswordField(int maxLength) {
+    public LoginRetroPasswordField(int maxLength) {
         super();
         setOpaque(false);
         setForeground(Color.WHITE);
         setCaretColor(CyberpunkLogin.COLOR_CYAN);
         setFont(new Font("Monospaced", Font.PLAIN, 14));
         setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-        ((AbstractDocument) getDocument()).setDocumentFilter(new LengthRestrictedDocumentFilter(maxLength));
+        ((AbstractDocument) getDocument()).setDocumentFilter(new LoginLengthRestrictedDocumentFilter(maxLength));
         addFocusListener(new FocusAdapter() {
             @Override public void focusGained(FocusEvent e) { focusActivo = true; repaint(); }
             @Override public void focusLost(FocusEvent e) { focusActivo = false; repaint(); }
         });
     }
-
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setColor(new Color(12, 18, 30));
         g2d.fillRect(0, 0, getWidth(), getHeight());
-        if (focusActivo) {
-            g2d.setColor(CyberpunkLogin.COLOR_MAGENTA);
-            g2d.setStroke(new BasicStroke(2.0f));
-        } else {
-            g2d.setColor(new Color(0, 240, 255, 120));
-            g2d.setStroke(new BasicStroke(1.0f));
-        }
+        g2d.setColor(focusActivo ? CyberpunkLogin.COLOR_MAGENTA : new Color(0, 240, 255, 120));
+        g2d.setStroke(new BasicStroke(focusActivo ? 2.0f : 1.0f));
         g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
         g2d.dispose();
         super.paintComponent(g);
     }
 }
 
-class RetroButton extends JButton {
+class LoginRetroButton extends JButton {
     private boolean mouseEncima = false;
-    public RetroButton(String text) {
+    public LoginRetroButton(String text) {
         super(text);
         setContentAreaFilled(false);
         setBorderPainted(false);
@@ -574,6 +709,6 @@ class LoginBackgroundPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         if (imagenFondo != null) { g.drawImage(imagenFondo, 0, 0, getWidth(), getHeight(), this); }
-        else { g.setColor(new Color(6, 12, 24)); g.fillRect(0, 0, getWidth(), getHeight()); }
+        else { g.setColor(CyberpunkLogin.COLOR_DARK_BG); g.fillRect(0, 0, getWidth(), getHeight()); }
     }
 }

@@ -14,6 +14,7 @@ import java.util.Random;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import main.Admin.Configuraciones.*;
+import main.AplicacionPrincipal;
 import main.Util.WindowManager;
 
 public class MenuUsuario extends JFrame {
@@ -47,16 +48,29 @@ public class MenuUsuario extends JFrame {
     private PanelFondo panelPrincipal;
 
     private final int idUsuarioActual;
+    private final AplicacionPrincipal aplicacion;
+    private Window ventanaPadre; 
 
-    // --- SOLUCIÓN: CONSTRUCTOR VACÍO AGREGADO PARA EVITAR ERRORES DE LLAMADO ---
+    // CONSTRUCTOR VACÍO
     public MenuUsuario() {
-
-        this(0); // Llama al constructor principal enviando un ID 0 por defecto
+        this(0); 
     }
 
-    // CONSTRUCTOR PRINCIPAL: Exige el ID del usuario logueado
+    // CONSTRUCTOR CON ID
     public MenuUsuario(int idUsuarioLogueado) {
+        this(idUsuarioLogueado, null);
+    }
+
+    // CONSTRUCTOR SECUNDARIO DESDE OTRA VENTANA (CORREGIDO)
+    public MenuUsuario(Window padre, int idUsuarioLogueado) {
+        this(idUsuarioLogueado, null);
+        this.ventanaPadre = padre; // Asignación limpia sin romper las reglas de constructores
+    }
+    
+    // CONSTRUCTOR PRINCIPAL
+    public MenuUsuario(int idUsuarioLogueado, AplicacionPrincipal aplicacion) {
         this.idUsuarioActual = idUsuarioLogueado;
+        this.aplicacion = aplicacion;
 
         setUndecorated(true);
         setSize(1200, 675);
@@ -164,9 +178,9 @@ public class MenuUsuario extends JFrame {
             public void keyPressed(KeyEvent e) {
                 switch (e.getKeyCode()) {
                     case KeyEvent.VK_UP:
-                        if (indiceSeleccionado > 3) {
+                        if (indiceSeleccionado > 0) {
                             indiceSeleccionado--;
-                        } else if (indiceSeleccionado == 3) {
+                        } else {
                             indiceSeleccionado = OPCIONES.length - 1;
                         }
                         actualizarEstadoVisual();
@@ -175,8 +189,8 @@ public class MenuUsuario extends JFrame {
                     case KeyEvent.VK_DOWN:
                         if (indiceSeleccionado < OPCIONES.length - 1) {
                             indiceSeleccionado++;
-                        } else if (indiceSeleccionado == OPCIONES.length - 1) {
-                            indiceSeleccionado = 3;
+                        } else {
+                            indiceSeleccionado = 0;
                         }
                         actualizarEstadoVisual();
                         repaint();
@@ -187,6 +201,10 @@ public class MenuUsuario extends JFrame {
                 }
             }
         });
+    }
+
+    public void setVentanaPadre(Window padre) {
+        this.ventanaPadre = padre;
     }
 
     private JButton crearBotonControl(String texto, Color colorNeon) {
@@ -260,6 +278,7 @@ public class MenuUsuario extends JFrame {
         return false;
     }
 
+    // --- CORREGIDO: Lógica de selección e i >= 3 arreglada ---
     private void actualizarEstadoVisual() {
         String fuenteMenu = validarFuente("Minecraft") ? "Minecraft" : "Monospaced";
 
@@ -267,18 +286,19 @@ public class MenuUsuario extends JFrame {
         int tamanoOtros = (getHeight() > 600) ? 21 : 19;
 
         for (int i = 0; i < botones.length; i++) {
-            if (botones[i] == null) {
-                continue;
-            }
+            if (botones[i] == null) continue;
 
+            // Asignar fuentes por jerarquía
             if (i == 3) {
                 botones[i].setFont(new Font(fuenteMenu, Font.BOLD, tamanoJugar));
             } else {
                 botones[i].setFont(new Font(fuenteMenu, Font.BOLD, tamanoOtros));
             }
 
-            if (i == indiceSeleccionado) {
+            // Validar si el índice actual es el seleccionado dinámicamente
+            if (i == indiceSeleccionado) { 
                 botones[i].setForeground(COLOR_CIAN);
+                
                 if (errorActivo && random.nextInt(100) < 35) {
                     botones[i].setText(generarTextoGlitch(OPCIONES[i]));
                     botones[i].setForeground(COLOR_GLITCH_TEXT);
@@ -312,26 +332,17 @@ public class MenuUsuario extends JFrame {
             case 1:
                 JOptionPane.showMessageDialog(this, "Mostrando Novedades.");
                 break;
-            case 2:
-                this.dispose();
-
-                boolean ventanaEncontrada = false;
-                for (Window w : Window.getWindows()) {
-                    if (w instanceof JFrame && !w.isVisible()) {
-                        w.setVisible(true);
-                        ventanaEncontrada = true;
-                        break;
-                    }
-                }
-
-                if (!ventanaEncontrada) {
-                    try {
-                        Class<?> loginClass = Class.forName("main.Usuario.Login");
-                        JFrame nuevaLogin = (JFrame) loginClass.getDeclaredConstructor().newInstance();
-                        nuevaLogin.setVisible(true);
-                    } catch (Exception e) {
-                        System.out.println("No se pudo reabrir de forma dinámica: " + e.getMessage());
-                    }
+            case 2: // REGRESAR
+                if (ventanaPadre != null) {
+                    ventanaPadre.setVisible(true);
+                    dispose();
+                } else if (aplicacion != null) {
+                    aplicacion.mostrarMenu();
+                    dispose();
+                } else {
+                    main.Login.CyberpunkLogin login = new main.Login.CyberpunkLogin();
+                    login.setVisible(true);
+                    dispose();
                 }
                 break;
             case 3:
@@ -342,7 +353,7 @@ public class MenuUsuario extends JFrame {
                 break;
             case 5:
                 Window padre = SwingUtilities.getWindowAncestor(botones[5]);
-                ConfiguracionVenta ventanaConfig = new ConfiguracionVenta(padre);
+                ConfiguracionVenta ventanaConfig = new ConfiguracionVenta(padre, idUsuarioActual);
                 ventanaConfig.setVisible(true);
                 break;
             case 6:
@@ -352,7 +363,6 @@ public class MenuUsuario extends JFrame {
     }
 
     private class PanelFondo extends JPanel {
-
         private Image imagenFondo;
         private int shakeX = 0;
         private int shakeY = 0;
@@ -395,9 +405,7 @@ public class MenuUsuario extends JFrame {
         public void ajustarPosicionBotonesPorError(int sx, int sy) {
             int ancho = getWidth();
             for (int i = 0; i < OPCIONES.length; i++) {
-                if (botones[i] == null) {
-                    continue;
-                }
+                if (botones[i] == null) continue;
 
                 if (i == 0) {
                     botones[i].setHorizontalAlignment(SwingConstants.RIGHT);
@@ -461,7 +469,6 @@ public class MenuUsuario extends JFrame {
 
             if (indiceSeleccionado >= 3 && botones[indiceSeleccionado] != null) {
                 Rectangle limitesBoton = botones[indiceSeleccionado].getBounds();
-
                 int lineaY = limitesBoton.y + limitesBoton.height - 3;
                 int inicioX = limitesBoton.x;
                 int finX = inicioX + 235;

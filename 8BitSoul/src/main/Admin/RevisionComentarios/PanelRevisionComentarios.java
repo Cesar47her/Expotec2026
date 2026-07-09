@@ -18,13 +18,13 @@ import main.Util.WindowManager;
 
 public class PanelRevisionComentarios extends JFrame {
 
-    public static final Color CYAN_NEON     = new Color(0, 240, 255);
-    public static final Color MAGENTA_NEON  = new Color(242, 5, 203);
+    public static final Color CYAN_NEON = new Color(0, 240, 255);
+    public static final Color MAGENTA_NEON = new Color(242, 5, 203);
     public static final Color AMARILLO_WARN = new Color(255, 170, 0);
-    public static final Color VERDE_OK      = new Color(0, 230, 115);
-    public static final Color TEXTO_VALOR   = new Color(220, 240, 255);
-    public static final Color TEXTO_MUTED   = new Color(120, 130, 145);
-    public static final Color FONDO_DARK    = new Color(2, 6, 14);
+    public static final Color VERDE_OK = new Color(0, 230, 115);
+    public static final Color TEXTO_VALOR = new Color(220, 240, 255);
+    public static final Color TEXTO_MUTED = new Color(120, 130, 145);
+    public static final Color FONDO_DARK = new Color(2, 6, 14);
     public static final Color CAPA_NEGRA_TRANSPARENTE = new Color(6, 11, 22, 225);
 
     private FondoHUDPanel panelFondo;
@@ -43,10 +43,10 @@ public class PanelRevisionComentarios extends JFrame {
     private JLabel lblDetalleUsuario, lblDetalleNivel, lblDetalleMiembroDesde;
     private JTextArea txtCompletoComentario;
     private JTextArea txtResumenIA;
-    
+
     private JLabel lblMisionVal, lblLeccionVal, lblModuloVal, lblFechaVal;
     private JLabel lblIaLenguajeVal, lblIaContenidoVal, lblIaSpamVal, lblIaDiscursoVal, lblIaAcosoVal;
-    
+
     private JLabel lblConfianzaIA;
     private JProgressBar barraConfianzaIA;
 
@@ -55,6 +55,7 @@ public class PanelRevisionComentarios extends JFrame {
     private List<ComentarioDTO> listaComentariosMemoria = new ArrayList<>();
     private ComentarioDTO comentarioSeleccionado = null;
     private int paginaActual = 1;
+    private PanelAdmin panelAdminPadre;
     private final int FILAS_POR_PAGINA = 7;
 
     public PanelRevisionComentarios() {
@@ -67,9 +68,20 @@ public class PanelRevisionComentarios extends JFrame {
         construirListaUI();
     }
 
+    public PanelRevisionComentarios(PanelAdmin panelAdminPadre) {
+        this.panelAdminPadre = panelAdminPadre;
+        configurarVentana();
+        inicializarEstructura();
+        configurarAtajosTeclado();
+        main.Util.ContenedorVentana.pf_configurarVentana(this);
+        WindowManager.getInstance().register(this);
+        cargarComentariosDesdeBD();
+        construirListaUI();
+    }
+
     private void configurarVentana() {
         setUndecorated(true);
-        setSize(1200, 675); 
+        setSize(1200, 675);
         setMinimumSize(new Dimension(950, 600));
         setLocationRelativeTo(null);
 
@@ -96,22 +108,24 @@ public class PanelRevisionComentarios extends JFrame {
         panelTextosTitulo.add(lblTituloMain);
         panelTextosTitulo.add(lblSubtituloMain);
 
-        // Contenedor de botones de control estilizados con el sistema HUD
         JPanel panelControlesVentana = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 5));
         panelControlesVentana.setOpaque(false);
-        
+
         btnMinimizar = new BotonControlHUD("—", CYAN_NEON);
         btnMinimizar.addActionListener(e -> setExtendedState(JFrame.ICONIFIED));
-        
+
         btnMaximizar = new BotonControlHUD("⬜", CYAN_NEON);
         btnMaximizar.addActionListener(e -> {
-            if(getExtendedState() == JFrame.MAXIMIZED_BOTH) setExtendedState(JFrame.NORMAL);
-            else setExtendedState(JFrame.MAXIMIZED_BOTH);
+            if (getExtendedState() == JFrame.MAXIMIZED_BOTH) {
+                setExtendedState(JFrame.NORMAL);
+            } else {
+                setExtendedState(JFrame.MAXIMIZED_BOTH);
+            }
         });
-        
+
         btnCerrar = new BotonControlHUD("X", MAGENTA_NEON);
-        btnCerrar.addActionListener(e -> System.exit(0));
-        
+        btnCerrar.addActionListener(e -> regresarMenuPrincipal());
+
         panelControlesVentana.add(btnMinimizar);
         panelControlesVentana.add(btnMaximizar);
         panelControlesVentana.add(btnCerrar);
@@ -121,11 +135,16 @@ public class PanelRevisionComentarios extends JFrame {
         panelFondo.add(barraSuperior, BorderLayout.NORTH);
 
         barraSuperior.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
+            @Override
+            public void mousePressed(MouseEvent e) {
+                mouseX = e.getX();
+                mouseY = e.getY();
+            }
         });
         barraSuperior.addMouseMotionListener(new MouseAdapter() {
-            @Override public void mouseDragged(MouseEvent e) {
-                if(getExtendedState() != JFrame.MAXIMIZED_BOTH) {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (getExtendedState() != JFrame.MAXIMIZED_BOTH) {
                     setLocation(e.getXOnScreen() - mouseX, e.getYOnScreen() - mouseY);
                 }
             }
@@ -172,7 +191,8 @@ public class PanelRevisionComentarios extends JFrame {
         scrollComentarios.getViewport().setOpaque(false);
         scrollComentarios.setBorder(null);
         scrollComentarios.getVerticalScrollBar().setUI(new BasicScrollBarUI() {
-            @Override protected void configureScrollBarColors() {
+            @Override
+            protected void configureScrollBarColors() {
                 this.thumbColor = new Color(0, 240, 255, 65);
                 this.trackColor = new Color(0, 0, 0, 0);
             }
@@ -181,18 +201,25 @@ public class PanelRevisionComentarios extends JFrame {
 
         JPanel panelPaginador = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
         panelPaginador.setOpaque(false);
-        btnPagAnt = new JButton("◀"); ConfigurarBotonFlecha(btnPagAnt);
-        btnPagSig = new JButton("▶"); ConfigurarBotonFlecha(btnPagSig);
+        btnPagAnt = new JButton("◀");
+        ConfigurarBotonFlecha(btnPagAnt);
+        btnPagSig = new JButton("▶");
+        ConfigurarBotonFlecha(btnPagSig);
         lblPaginacionTxt = new JLabel("1 / 1", SwingConstants.CENTER);
         lblPaginacionTxt.setFont(new Font("Monospaced", Font.BOLD, 13));
         lblPaginacionTxt.setForeground(TEXTO_VALOR);
-        panelPaginador.add(btnPagAnt); panelPaginador.add(lblPaginacionTxt); panelPaginador.add(btnPagSig);
+        panelPaginador.add(btnPagAnt);
+        panelPaginador.add(lblPaginacionTxt);
+        panelPaginador.add(btnPagSig);
         colCentral.add(panelPaginador, BorderLayout.SOUTH);
 
         btnPagAnt.addActionListener(e -> cambiarPagina(-1));
         btnPagSig.addActionListener(e -> cambiarPagina(1));
 
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.45; gbc.weighty = 1.0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.45;
+        gbc.weighty = 1.0;
         panelGridCentral.add(colCentral, gbc);
 
         // SECCIÓN DERECHA: INSPECTOR DE DETALLES IA
@@ -202,7 +229,7 @@ public class PanelRevisionComentarios extends JFrame {
         JPanel headerDerecho = new JPanel(new BorderLayout());
         headerDerecho.setOpaque(false);
         headerDerecho.add(crearLabelSeccion("INSPECTOR DE AUDITORÍA DETALLADA"), BorderLayout.NORTH);
-        
+
         JPanel datosMetaUser = new JPanel(new BorderLayout());
         datosMetaUser.setOpaque(false);
         datosMetaUser.setBorder(new EmptyBorder(6, 0, 0, 0));
@@ -216,8 +243,10 @@ public class PanelRevisionComentarios extends JFrame {
         lblDetalleMiembroDesde.setFont(new Font("Monospaced", Font.PLAIN, 11));
         lblDetalleMiembroDesde.setForeground(TEXTO_MUTED);
 
-        JPanel subIzq = new JPanel(new GridLayout(2, 1)); subIzq.setOpaque(false);
-        subIzq.add(lblDetalleUsuario); subIzq.add(lblDetalleNivel);
+        JPanel subIzq = new JPanel(new GridLayout(2, 1));
+        subIzq.setOpaque(false);
+        subIzq.add(lblDetalleUsuario);
+        subIzq.add(lblDetalleNivel);
         datosMetaUser.add(subIzq, BorderLayout.WEST);
         datosMetaUser.add(lblDetalleMiembroDesde, BorderLayout.EAST);
         headerDerecho.add(datosMetaUser, BorderLayout.SOUTH);
@@ -230,8 +259,8 @@ public class PanelRevisionComentarios extends JFrame {
         txtCompletoComentario.setOpaque(false);
         txtCompletoComentario.setForeground(TEXTO_VALOR);
         txtCompletoComentario.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        txtCompletoComentario.setBorder(new CompoundBorder(new LineBorder(new Color(0,240,255,45), 1), new EmptyBorder(12,12,12,12)));
-        
+        txtCompletoComentario.setBorder(new CompoundBorder(new LineBorder(new Color(0, 240, 255, 45), 1), new EmptyBorder(12, 12, 12, 12)));
+
         JScrollPane scrollTextoFull = new JScrollPane(txtCompletoComentario);
         scrollTextoFull.setOpaque(false);
         scrollTextoFull.getViewport().setOpaque(false);
@@ -258,8 +287,8 @@ public class PanelRevisionComentarios extends JFrame {
         subIA.add(crearFilaDetalleMini("Spam / Publicidad", lblIaSpamVal = crearLabelIaStatus(false)));
         subIA.add(crearFilaDetalleMini("Discurso de Odio", lblIaDiscursoVal = crearLabelIaStatus(false)));
         subIA.add(crearFilaDetalleMini("Acoso / Toxicidad", lblIaAcosoVal = crearLabelIaStatus(false)));
-        
-        JPanel containerProgreso = new JPanel(new BorderLayout(5,0));
+
+        JPanel containerProgreso = new JPanel(new BorderLayout(5, 0));
         containerProgreso.setOpaque(false);
         lblConfianzaIA = new JLabel("CONFIANZA: 0%");
         lblConfianzaIA.setFont(new Font("Monospaced", Font.BOLD, 10));
@@ -290,20 +319,23 @@ public class PanelRevisionComentarios extends JFrame {
         txtResumenIA.setOpaque(false);
         txtResumenIA.setForeground(TEXTO_VALOR);
         txtResumenIA.setFont(new Font("SansSerif", Font.ITALIC, 12));
-        txtResumenIA.setBorder(new EmptyBorder(5,5,5,5));
+        txtResumenIA.setBorder(new EmptyBorder(5, 5, 5, 5));
         panelResumenWrap.add(txtResumenIA, BorderLayout.CENTER);
         panelInferiorDerecho.add(panelResumenWrap, BorderLayout.SOUTH);
 
         colDerecha.add(panelInferiorDerecho, BorderLayout.SOUTH);
 
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 0.55; gbc.weighty = 1.0;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 0.55;
+        gbc.weighty = 1.0;
         panelGridCentral.add(colDerecha, gbc);
 
         JPanel panelContenedorConMargen = new JPanel(new BorderLayout());
         panelContenedorConMargen.setOpaque(false);
         panelContenedorConMargen.setBorder(new EmptyBorder(5, 25, 10, 25));
         panelContenedorConMargen.add(panelGridCentral, BorderLayout.CENTER);
-        
+
         panelFondo.add(panelContenedorConMargen, BorderLayout.CENTER);
 
         // --- BOTONERA INFERIOR ---
@@ -317,7 +349,7 @@ public class PanelRevisionComentarios extends JFrame {
 
         JPanel subAccionesDerecha = new JPanel(new FlowLayout(FlowLayout.RIGHT, 18, 0));
         subAccionesDerecha.setOpaque(false);
-        
+
         btnAprobar = new BotonNeonHUD("✔ APROBAR (F1)", VERDE_OK, true, 180, 48, 13);
         btnRechazar = new BotonNeonHUD("✖ RECHAZAR (F2)", MAGENTA_NEON, true, 180, 48, 13);
         btnReportar = new BotonNeonHUD("🏳 REPORTAR (F3)", AMARILLO_WARN, true, 180, 48, 13);
@@ -348,35 +380,38 @@ public class PanelRevisionComentarios extends JFrame {
         comp.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0), identificador);
         comp.getActionMap().put(identificador, new AbstractAction() {
             @Override
-            public void actionPerformed(ActionEvent e) { accion.run(); }
+            public void actionPerformed(ActionEvent e) {
+                accion.run();
+            }
         });
     }
 
     private void cambiarPagina(int direccion) {
         int proximapagina = paginaActual + direccion;
-        if(proximapagina >= 1 && proximapagina <= calcularTotalPaginas()) {
+        if (proximapagina >= 1 && proximapagina <= calcularTotalPaginas()) {
             paginaActual = proximapagina;
             construirListaUI();
         }
     }
 
     private void regresarMenuPrincipal() {
-        PanelAdmin menuAdmin = new PanelAdmin();
-        menuAdmin.setVisible(true);
+        if (panelAdminPadre != null) {
+            panelAdminPadre.setVisible(true);
+        } else {
+            new PanelAdmin().setVisible(true);
+        }
         this.dispose();
     }
 
     private void cargarComentariosDesdeBD() {
         listaComentariosMemoria.clear();
-        String query = "SELECT m.*, u.username, p.nivel_cuenta, p.experiencia, u.fecha_registro " +
-                       "FROM MODERACION_COMENTARIO m " +
-                       "JOIN USUARIO u ON m.id_usuario = u.id_usuario " +
-                       "LEFT JOIN PERFIL p ON u.id_usuario = p.id_usuario " +
-                       "ORDER BY m.fecha_comentario DESC";
+        String query = "SELECT m.*, u.username, p.nivel_cuenta, p.experiencia, u.fecha_registro "
+                + "FROM MODERACION_COMENTARIO m "
+                + "JOIN USUARIO u ON m.id_usuario = u.id_usuario "
+                + "LEFT JOIN PERFIL p ON u.id_usuario = p.id_usuario "
+                + "ORDER BY m.fecha_comentario DESC";
 
-        try (Connection con = ConexionSQL.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(query);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection con = ConexionSQL.obtenerConexion(); PreparedStatement ps = con.prepareStatement(query); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 ComentarioDTO c = new ComentarioDTO();
                 c.idModeracion = rs.getInt("id_moderacion");
@@ -409,8 +444,10 @@ public class PanelRevisionComentarios extends JFrame {
         panelListaComentarios.removeAll();
         int totalFilas = listaComentariosMemoria.size();
         int paginasTotales = calcularTotalPaginas();
-        
-        if(paginaActual > paginasTotales) paginaActual = Math.max(1, paginasTotales);
+
+        if (paginaActual > paginasTotales) {
+            paginaActual = Math.max(1, paginasTotales);
+        }
         lblPaginacionTxt.setText(paginaActual + " / " + Math.max(1, paginasTotales));
 
         int inicio = (paginaActual - 1) * FILAS_POR_PAGINA;
@@ -419,18 +456,23 @@ public class PanelRevisionComentarios extends JFrame {
         for (int i = inicio; i < fin; i++) {
             ComentarioDTO dto = listaComentariosMemoria.get(i);
             Color colEst = AMARILLO_WARN;
-            if ("APROBADO".equalsIgnoreCase(dto.estado)) colEst = VERDE_OK;
-            if ("RECHAZADO".equalsIgnoreCase(dto.estado)) colEst = MAGENTA_NEON;
+            if ("APROBADO".equalsIgnoreCase(dto.estado)) {
+                colEst = VERDE_OK;
+            }
+            if ("RECHAZADO".equalsIgnoreCase(dto.estado)) {
+                colEst = MAGENTA_NEON;
+            }
 
-            String extracto = dto.textoComentario.length() > 50 ? dto.textoComentario.substring(0, 47) + "..." : dto.textoComentario;
+            String extracto = dto.textoComentario.length() > 40 ? dto.textoComentario.substring(0, 37) + "..." : dto.textoComentario;
 
             TarjetaComentario tarjeta = new TarjetaComentario(dto.username, "LVL " + dto.nivel, extracto, dto.estado, colEst);
             tarjeta.setFocusable(true);
-            
+
             tarjeta.addMouseListener(new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent e) { 
+                @Override
+                public void mousePressed(MouseEvent e) {
                     tarjeta.requestFocusInWindow();
-                    cargarDetalleEnEspejo(dto); 
+                    cargarDetalleEnEspejo(dto);
                 }
             });
             panelListaComentarios.add(tarjeta);
@@ -446,7 +488,7 @@ public class PanelRevisionComentarios extends JFrame {
         lblDetalleNivel.setText("NIVEL " + dto.nivel + "  [ " + String.format("%,d", dto.experiencia) + " XP ]");
         lblDetalleMiembroDesde.setText("REGISTRO DE CUENTA: " + new java.text.SimpleDateFormat("dd/MM/yyyy").format(dto.fechaRegistro));
         txtCompletoComentario.setText(dto.textoComentario);
-        
+
         lblMisionVal.setText(dto.mision);
         lblLeccionVal.setText(dto.leccion);
         lblModuloVal.setText(dto.modulo);
@@ -469,12 +511,11 @@ public class PanelRevisionComentarios extends JFrame {
             return;
         }
         String updateQuery = "UPDATE MODERACION_COMENTARIO SET estado_comentario = ? WHERE id_moderacion = ?";
-        try (Connection con = ConexionSQL.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(updateQuery)) {
+        try (Connection con = ConexionSQL.obtenerConexion(); PreparedStatement ps = con.prepareStatement(updateQuery)) {
             ps.setString(1, nuevoEstado);
             ps.setInt(2, comentarioSeleccionado.idModeracion);
             ps.executeUpdate();
-            
+
             cargarComentariosDesdeBD();
             construirListaUI();
             limpiarEspejoDetalles();
@@ -486,7 +527,10 @@ public class PanelRevisionComentarios extends JFrame {
     private void limpiarEspejoDetalles() {
         lblDetalleUsuario.setText("ESTADO ACTUALIZADO");
         txtCompletoComentario.setText("");
-        lblMisionVal.setText("--"); lblLeccionVal.setText("--"); lblModuloVal.setText("--"); lblFechaVal.setText("--");
+        lblMisionVal.setText("--");
+        lblLeccionVal.setText("--");
+        lblModuloVal.setText("--");
+        lblFechaVal.setText("--");
         txtResumenIA.setText("Seleccione una nueva entrada para auditar.");
         barraConfianzaIA.setValue(0);
         lblConfianzaIA.setText("CONFIDENCIA: 0%");
@@ -514,26 +558,40 @@ public class PanelRevisionComentarios extends JFrame {
     }
 
     private JLabel crearLabelSeccion(String t) {
-        JLabel l = new JLabel(t); l.setFont(new Font("Monospaced", Font.BOLD, 14)); l.setForeground(CYAN_NEON);
+        JLabel l = new JLabel(t);
+        l.setFont(new Font("Monospaced", Font.BOLD, 14));
+        l.setForeground(CYAN_NEON);
         return l;
     }
+
     private JLabel crearLabelSubSeccion(String t) {
-        JLabel l = new JLabel(t); l.setFont(new Font("Monospaced", Font.BOLD, 12)); l.setForeground(CYAN_NEON);
-        l.setBorder(new EmptyBorder(0,0,5,0));
+        JLabel l = new JLabel(t);
+        l.setFont(new Font("Monospaced", Font.BOLD, 12));
+        l.setForeground(CYAN_NEON);
+        l.setBorder(new EmptyBorder(0, 0, 5, 0));
         return l;
     }
+
     private JLabel crearLabelValorMini(String t) {
-        JLabel l = new JLabel(t, SwingConstants.RIGHT); l.setFont(new Font("SansSerif", Font.PLAIN, 12)); l.setForeground(TEXTO_VALOR);
+        JLabel l = new JLabel(t, SwingConstants.RIGHT);
+        l.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        l.setForeground(TEXTO_VALOR);
         return l;
     }
+
     private JLabel crearLabelIaStatus(boolean d) {
         JLabel l = new JLabel(d ? "DETECTADO" : "LIMPIO", SwingConstants.RIGHT);
-        l.setFont(new Font("Monospaced", Font.BOLD, 11)); l.setForeground(d ? MAGENTA_NEON : VERDE_OK);
+        l.setFont(new Font("Monospaced", Font.BOLD, 11));
+        l.setForeground(d ? MAGENTA_NEON : VERDE_OK);
         return l;
     }
+
     private void ConfigurarBotonFlecha(JButton b) {
-        b.setFont(new Font("Monospaced", Font.BOLD, 18)); b.setForeground(CYAN_NEON);
-        b.setContentAreaFilled(false); b.setBorderPainted(false); b.setFocusPainted(false);
+        b.setFont(new Font("Monospaced", Font.BOLD, 18));
+        b.setForeground(CYAN_NEON);
+        b.setContentAreaFilled(false);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
@@ -569,7 +627,9 @@ class FondoHUDPanel extends JPanel {
     public FondoHUDPanel(String rutaImagen) {
         try {
             File fichero = new File(rutaImagen);
-            if(fichero.exists()) this.imagenFondo = ImageIO.read(fichero);
+            if (fichero.exists()) {
+                this.imagenFondo = ImageIO.read(fichero);
+            }
         } catch (Exception e) {
             System.out.println("Fondo principal HUD ausente.");
         }
@@ -580,7 +640,7 @@ class FondoHUDPanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
+
         if (imagenFondo != null) {
             g2d.drawImage(imagenFondo, 0, 0, getWidth(), getHeight(), this);
         } else {
@@ -591,7 +651,7 @@ class FondoHUDPanel extends JPanel {
         g2d.setStroke(new BasicStroke(1.5f));
         g2d.setColor(new Color(0, 240, 255, 45));
         g2d.drawRect(12, 12, getWidth() - 24, getHeight() - 24);
-        
+
         g2d.dispose();
     }
 }
@@ -609,8 +669,17 @@ class TarjetaComentario extends JPanel {
         setMaximumSize(new Dimension(2000, 58));
 
         addFocusListener(new FocusListener() {
-            @Override public void focusGained(FocusEvent e) { tieneFoco = true; repaint(); }
-            @Override public void focusLost(FocusEvent e) { tieneFoco = false; repaint(); }
+            @Override
+            public void focusGained(FocusEvent e) {
+                tieneFoco = true;
+                repaint();
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                tieneFoco = false;
+                repaint();
+            }
         });
 
         JPanel panelIzquierdo = new JPanel(new GridLayout(2, 1));
@@ -631,7 +700,9 @@ class TarjetaComentario extends JPanel {
         JLabel level = new JLabel(lvl);
         level.setFont(new Font("Monospaced", Font.BOLD, 10));
         level.setForeground(PanelRevisionComentarios.TEXTO_MUTED);
-        c.gridx = 0; c.gridy = 0; c.insets = new Insets(0,0,0,12);
+        c.gridx = 0;
+        c.gridy = 0;
+        c.insets = new Insets(0, 0, 0, 12);
         panelDerecho.add(level, c);
 
         JLabel badge = new JLabel(" " + estado.toUpperCase() + " ") {
@@ -641,14 +712,15 @@ class TarjetaComentario extends JPanel {
                 g2d.setColor(new Color(colorEstado.getRed(), colorEstado.getGreen(), colorEstado.getBlue(), 30));
                 g2d.fillRect(0, 0, getWidth(), getHeight());
                 g2d.setColor(colorEstado);
-                g2d.drawRect(0, 0, getWidth()-1, getHeight()-1);
+                g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
                 g2d.dispose();
                 super.paintComponent(g);
             }
         };
         badge.setFont(new Font("Monospaced", Font.BOLD, 10));
         badge.setForeground(colorEstado);
-        c.gridx = 1; c.insets = new Insets(0,0,0,0);
+        c.gridx = 1;
+        c.insets = new Insets(0, 0, 0, 0);
         panelDerecho.add(badge, c);
 
         add(panelIzquierdo, BorderLayout.CENTER);
@@ -670,19 +742,44 @@ class TarjetaComentario extends JPanel {
     }
 }
 
+class BotonControlHUD extends JButton {
+    private final Color colorHover;
+
+    public BotonControlHUD(String texto, Color colorHover) {
+        super(texto);
+        this.colorHover = colorHover;
+        setFont(new Font("Monospaced", Font.BOLD, 12));
+        setForeground(PanelRevisionComentarios.TEXTO_MUTED);
+        setContentAreaFilled(false);
+        setBorderPainted(false);
+        setFocusPainted(false);
+        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) { setForeground(colorHover); }
+            @Override
+            public void mouseExited(MouseEvent e) { setForeground(PanelRevisionComentarios.TEXTO_MUTED); }
+        });
+    }
+}
+
 class BotonNeonHUD extends JButton {
     private final String stringLabel;
     private final Color colorNeon;
     private final boolean tieneCapsula;
-    private boolean mouseEncima = false;
     private final int tamanoFuente;
+    private boolean mouseEncima = false;
 
-    public BotonNeonHUD(String texto, Color colorNeon, boolean tieneCapsula, int ancho, int alto, int tamanoFuente) {
-        this.stringLabel = texto;
-        this.colorNeon = colorNeon;
-        this.tieneCapsula = tieneCapsula;
-        this.tamanoFuente = tamanoFuente;
-        
+    public BotonNeonHUD(String label, Color color, boolean capsula, int ancho, int alto, int fuenteSize) {
+        this.stringLabel = label;
+        this.colorNeon = color;
+        this.tieneCapsula = capsula;
+        this.tamanoFuente = fuenteSize;
+
+        setText(label);
+        setFont(new Font("Monospaced", Font.BOLD, fuenteSize));
+        setForeground(color);
         setPreferredSize(new Dimension(ancho, alto));
         setContentAreaFilled(false);
         setBorderPainted(false);
@@ -690,8 +787,16 @@ class BotonNeonHUD extends JButton {
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { mouseEncima = true; repaint(); }
-            @Override public void mouseExited(MouseEvent e) { mouseEncima = false; repaint(); }
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                mouseEncima = true;
+                repaint();
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                mouseEncima = false;
+                repaint();
+            }
         });
     }
 
@@ -700,89 +805,19 @@ class BotonNeonHUD extends JButton {
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Renderizado del fondo/cápsula del botón
         if (tieneCapsula) {
             if (mouseEncima) {
-                g2d.setColor(new Color(colorNeon.getRed(), colorNeon.getGreen(), colorNeon.getBlue(), 45));
+                g2d.setColor(new Color(colorNeon.getRed(), colorNeon.getGreen(), colorNeon.getBlue(), 40));
                 g2d.fillRect(0, 0, getWidth(), getHeight());
-                g2d.setColor(colorNeon);
-                g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
             } else {
-                g2d.setColor(new Color(colorNeon.getRed(), colorNeon.getGreen(), colorNeon.getBlue(), 15));
-                g2d.fillRect(0, 0, getWidth(), getHeight());
-                g2d.setColor(new Color(colorNeon.getRed(), colorNeon.getGreen(), colorNeon.getBlue(), 100));
-                g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
-            }
-        } else {
-            // Estilo simple sin cápsula (efecto hover de texto)
-            if (mouseEncima) {
-                g2d.setColor(new Color(colorNeon.getRed(), colorNeon.getGreen(), colorNeon.getBlue(), 25));
+                g2d.setColor(new Color(4, 12, 28, 180));
                 g2d.fillRect(0, 0, getWidth(), getHeight());
             }
-        }
-
-        // Renderizado del texto centrado
-        g2d.setFont(new Font("Monospaced", Font.BOLD, tamanoFuente));
-        g2d.setColor(mouseEncima ? Color.WHITE : colorNeon);
-        
-        FontMetrics fm = g2d.getFontMetrics();
-        int x = (getWidth() - fm.stringWidth(stringLabel)) / 2;
-        int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-        
-        g2d.drawString(stringLabel, x, y);
-
-        g2d.dispose();
-    }
-}
-
-// --- NUEVO COMPONENTE: BOTONES DE CONTROL SUPERIOR INTEGRADOS ---
-class BotonControlHUD extends JButton {
-    private final Color colorEfecto;
-    private boolean mouseEncima = false;
-
-    public BotonControlHUD(String texto, Color colorEfecto) {
-        super(texto);
-        this.colorEfecto = colorEfecto;
-        setPreferredSize(new Dimension(40, 30));
-        setContentAreaFilled(false);
-        setBorderPainted(false);
-        setFocusPainted(false);
-        setFont(new Font("SansSerif", Font.BOLD, 13));
-        setForeground(PanelRevisionComentarios.TEXTO_MUTED);
-        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                mouseEncima = true;
-                setForeground(colorEfecto == PanelRevisionComentarios.MAGENTA_NEON ? Color.WHITE : colorEfecto);
-                repaint();
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                mouseEncima = false;
-                setForeground(PanelRevisionComentarios.TEXTO_MUTED);
-                repaint();
-            }
-        });
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        if (mouseEncima) {
-            Graphics2D g2d = (Graphics2D) g.create();
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            // Si es el botón de cerrar (X), pinta un fondo rojo translúcido, de lo contrario usa un azul HUD sutil
-            if (colorEfecto == PanelRevisionComentarios.MAGENTA_NEON) {
-                g2d.setColor(new Color(242, 5, 203, 70));
-            } else {
-                g2d.setColor(new Color(0, 240, 255, 35));
-            }
-            g2d.fillRect(0, 0, getWidth(), getHeight());
-            g2d.setColor(colorEfecto);
+            g2d.setColor(colorNeon);
             g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
-            g2d.dispose();
         }
+        
+        g2d.dispose();
         super.paintComponent(g);
     }
 }

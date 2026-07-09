@@ -6,23 +6,12 @@ import java.awt.event.ActionListener;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Random;
 import javax.swing.*;
-import main.Util.WindowManager;
 
-public class GlitchLoadingScreen extends JFrame {
-    private final JFrame nextWindow; 
-
-    public GlitchLoadingScreen(JFrame nextWindow) {
-        this.nextWindow = nextWindow;
-        main.Util.ContenedorVentana.pf_configurarVentana(this);
-        setTitle("8BIT SOUL - Loading...");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setUndecorated(true); 
-        setSize(960, 540); 
-        setLocationRelativeTo(null);
-        WindowManager.getInstance().register(this);
-        
-        LoadingPanel loadingPanel = new LoadingPanel(this, nextWindow);
-        add(loadingPanel);
+public class GlitchLoadingScreen extends JPanel {
+    public GlitchLoadingScreen(Runnable onComplete) {
+        setPreferredSize(new Dimension(960, 540));
+        setLayout(new BorderLayout());
+        add(new LoadingPanel(onComplete), BorderLayout.CENTER);
     }
 }
 
@@ -30,8 +19,7 @@ class LoadingPanel extends JPanel implements ActionListener {
     private int progress = 0;
     private final Timer timer;
     private final Random random = new Random();
-    private final JFrame parentFrame;
-    private final JFrame nextWindow; 
+    private final Runnable onComplete;
 
     private Image backgroundImage;
 
@@ -44,9 +32,8 @@ class LoadingPanel extends JPanel implements ActionListener {
     private final Color COLOR_CYAN = new Color(0, 240, 255);    
     private final Color COLOR_MAGENTA = new Color(211, 0, 197); 
 
-    public LoadingPanel(JFrame parentFrame, JFrame nextWindow) {
-        this.parentFrame = parentFrame;
-        this.nextWindow = nextWindow;
+    public LoadingPanel(Runnable onComplete) {
+        this.onComplete = onComplete;
         setBackground(COLOR_BG);
         
         backgroundImage = new ImageIcon("src/imagenes/Carga1.png").getImage();
@@ -163,9 +150,8 @@ class LoadingPanel extends JPanel implements ActionListener {
         repaint();
 
         Timer exitTimer = new Timer(400, e -> {
-            parentFrame.dispose(); 
-            if (nextWindow != null) {
-                nextWindow.setVisible(true); 
+            if (onComplete != null) {
+                onComplete.run();
             }
         });
         exitTimer.setRepeats(false);

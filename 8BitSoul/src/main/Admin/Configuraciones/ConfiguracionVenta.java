@@ -5,6 +5,7 @@ import javax.swing.border.LineBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import main.Util.ReproducirSonido;
+import main.Util.ImpresoraTicket; 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -23,9 +24,7 @@ public class ConfiguracionVenta extends JDialog {
     public static final Color COLOR_BTN_BG = new Color(12, 24, 44, 230);
     public static final Color COLOR_KEY_DEFAULT = new Color(20, 35, 60, 200);
 
-    private JSlider slVolumenGeneral, slMusica, slEfectos;
-    private JRadioButton rbPequeno, rbMediano, rbGrande;
-    private ButtonGroup grupoTamanoBotones;
+    private JSlider slVolumenGeneral;
     
     private JTextField txtArriba, txtAbajo, txtIzquierda, txtDerecha;
     private JTextField txtSaltar, txtAtacar, txtInventario, txtPausa;
@@ -35,39 +34,38 @@ public class ConfiguracionVenta extends JDialog {
     private int mouseX, mouseY;
 
     private final ConfiguracionController controller;
-    private final int idUsuarioActual = 1; 
+    private final int idUsuarioActual; 
 
-    // Almacén de los botones del teclado virtual para poder cambiarles el color dinámicamente
     private final Map<String, JButton> mapaBotonesTeclado = new HashMap<>();
 
-    public ConfiguracionVenta(Window padre) {
-        super(padre, ModalityType.APPLICATION_MODAL);
+    public ConfiguracionVenta(Window padre, int idUsuarioLogueado) {
+        super(padre, ModalityType.DOCUMENT_MODAL);
+        this.idUsuarioActual = idUsuarioLogueado; 
         this.controller = new ConfiguracionController();
+        
         configurarVentana();
         initComponentes();
-        // 1. Carga desde la base de datos
+        
+        // Se pasan objetos nulos o simulados para los componentes removidos para no romper la firma del controller
         controller.cargarConfiguracionEnPantalla(
-            idUsuarioActual, slVolumenGeneral, rbPequeno, rbMediano, rbGrande, 
+            idUsuarioActual, slVolumenGeneral, new JRadioButton(), new JRadioButton(), new JRadioButton(), 
             txtArriba, txtAbajo, txtIzquierda, txtDerecha, txtSaltar, txtAtacar, txtInventario, txtPausa
         );
         
-        // 2. Escuchar cambios en los inputs para encender/apagar teclas
         añadirListenersMapeoTeclado();
-        
-        // 3. Forzar primer renderizado de luces en el teclado
         actualizarLucesTeclado();
-        
-        // 4. Enlazar otros eventos (Sliders)
         enlazarEventosDinamicos();
     }
 
     private void configurarVentana() {
         setUndecorated(true); 
-        setSize(1020, 640); // Ajustado un poco el ancho para el teclado de forma cómoda
+        setSize(1020, 540); // Altura optimizada al remover el HUD y sliders extras
         setLocationRelativeTo(getOwner()); 
         setResizable(false);
         setBackground(new Color(0, 0, 0, 0)); 
         pixelFont = new Font("Monospaced", Font.BOLD, 12);
+        
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
     }
 
     private void initComponentes() {
@@ -101,7 +99,7 @@ public class ConfiguracionVenta extends JDialog {
         barraSuperior.setBounds(0, 0, 1020, 30);
         panelPrincipal.add(barraSuperior);
 
-        JLabel lblTituloVentana = new JLabel(" ⚙ CORE_SYS // CONFIGURACIÓN GENERAL Y MAPEADO DE ENTORNO");
+        JLabel lblTituloVentana = new JLabel(" ⚙ CORE_SYS // CONFIGURACIÓN DE AUDIO Y CONTROLES");
         lblTituloVentana.setFont(pixelFont);
         lblTituloVentana.setForeground(COLOR_TEXT_LIGHT);
         lblTituloVentana.setBounds(15, 0, 600, 30);
@@ -115,7 +113,8 @@ public class ConfiguracionVenta extends JDialog {
         btnCerrar.setFocusPainted(false);
         btnCerrar.setBounds(970, 0, 50, 30);
         btnCerrar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnCerrar.addActionListener(e -> this.dispose()); 
+        
+        btnCerrar.addActionListener(e -> cerrarVentanaLimpio()); 
         barraSuperior.add(btnCerrar);
 
         barraSuperior.addMouseListener(new MouseAdapter() {
@@ -125,88 +124,80 @@ public class ConfiguracionVenta extends JDialog {
             @Override public void mouseDragged(MouseEvent e) { setLocation(e.getXOnScreen() - mouseX, e.getYOnScreen() - mouseY); }
         });
 
-        // --- COLUMNA IZQUIERDA (CONFIGURACIONES) ---
-
-        // Sección Audio
+        // --- COLUMNA IZQUIERDA ---
+        // Sección Audio (Solo Volumen General)
         JPanel panelAudio = createContenedorCyber(COLOR_CYAN);
-        panelAudio.setBounds(20, 50, 480, 140);
+        panelAudio.setBounds(20, 50, 480, 90);
         panelPrincipal.add(panelAudio);
 
-        JLabel lblAudioTitulo = new JLabel("⚡ MODIFICAR AUDIO");
+        JLabel lblAudioTitulo = new JLabel("⚡ CONTROL DE AUDIO MASTER");
         lblAudioTitulo.setFont(pixelFont);
         lblAudioTitulo.setForeground(COLOR_CYAN);
         lblAudioTitulo.setBounds(15, 10, 300, 20);
         panelAudio.add(lblAudioTitulo);
 
-        slVolumenGeneral = createSliderCyber(); slVolumenGeneral.setBounds(150, 40, 260, 30); panelAudio.add(slVolumenGeneral);
-        panelAudio.add(createLabelCyber("General", COLOR_TEXT_LIGHT)).setBounds(25, 42, 110, 20);
-        JLabel lblValorVol = createLabelCyber("80%", COLOR_CYAN); lblValorVol.setBounds(420, 42, 50, 20); panelAudio.add(lblValorVol);
+        slVolumenGeneral = createSliderCyber(); 
+        slVolumenGeneral.setBounds(150, 42, 260, 30); 
+        panelAudio.add(slVolumenGeneral);
+        
+        panelAudio.add(createLabelCyber("Vol. General", COLOR_TEXT_LIGHT)).setBounds(25, 44, 110, 20);
+        JLabel lblValorVol = createLabelCyber("80%", COLOR_CYAN); 
+        lblValorVol.setBounds(420, 44, 50, 20); 
+        panelAudio.add(lblValorVol);
 
-        slMusica = createSliderCyber(); slMusica.setBounds(150, 70, 260, 30); slMusica.setValue(70); panelAudio.add(slMusica);
-        panelAudio.add(createLabelCyber("Música", COLOR_TEXT_LIGHT)).setBounds(25, 72, 110, 20);
-        JLabel lblVM = createLabelCyber("70%", COLOR_CYAN); lblVM.setBounds(420, 72, 50, 20); panelAudio.add(lblVM);
-
-        slEfectos = createSliderCyber(); slEfectos.setBounds(150, 100, 260, 30); slEfectos.setValue(90); panelAudio.add(slEfectos);
-        panelAudio.add(createLabelCyber("Efectos", COLOR_TEXT_LIGHT)).setBounds(25, 102, 110, 20);
-        JLabel lblVE = createLabelCyber("90%", COLOR_CYAN); lblVE.setBounds(420, 102, 50, 20); panelAudio.add(lblVE);
-
-        // Sección Tamaño de Botones
-        JPanel panelTamano = createContenedorCyber(COLOR_MAGENTA);
-        panelTamano.setBounds(20, 200, 480, 90);
-        panelPrincipal.add(panelTamano);
-
-        JLabel lblTamanoTitulo = new JLabel("⚡ ESCALADO DEL HUD");
-        lblTamanoTitulo.setFont(pixelFont);
-        lblTamanoTitulo.setForeground(COLOR_MAGENTA);
-        lblTamanoTitulo.setBounds(15, 10, 300, 20);
-        panelTamano.add(lblTamanoTitulo);
-
-        rbPequeno = createRadioCyber("PEQUEÑO", COLOR_MAGENTA); rbPequeno.setBounds(25, 45, 120, 30); panelTamano.add(rbPequeno);
-        rbMediano = createRadioCyber("MEDIANO", COLOR_MAGENTA); rbMediano.setBounds(180, 45, 120, 30); panelTamano.add(rbMediano);
-        rbGrande = createRadioCyber("GRANDE", COLOR_MAGENTA); rbGrande.setBounds(335, 45, 120, 30); panelTamano.add(rbGrande);
-
-        grupoTamanoBotones = new ButtonGroup();
-        grupoTamanoBotones.add(rbPequeno); grupoTamanoBotones.add(rbMediano); grupoTamanoBotones.add(rbGrande);
-
-        // Sección Inputs Controles
+        // Sección Inputs Controles (Alineada hacia arriba)
         JPanel panelControles = createContenedorCyber(COLOR_CYAN);
-        panelControles.setBounds(20, 300, 480, 260);
+        panelControles.setBounds(20, 155, 480, 355);
         panelPrincipal.add(panelControles);
 
-        JLabel lblControlesTitulo = new JLabel("⚡ ASIGNACIÓN DE TECLAS");
+        JLabel lblControlesTitulo = new JLabel("⚡ ASIGNACIÓN DE TECLAS DE ENTORNO");
         lblControlesTitulo.setFont(pixelFont);
         lblControlesTitulo.setForeground(COLOR_CYAN);
-        lblControlesTitulo.setBounds(15, 10, 400, 20);
+        lblControlesTitulo.setBounds(15, 15, 400, 20);
         panelControles.add(lblControlesTitulo);
 
-        int xL1 = 20, xT1 = 120, xL2 = 240, xT2 = 350;
-        panelControles.add(createLabelCyber("Arriba:", COLOR_TEXT_LIGHT)).setBounds(xL1, 45, 90, 25); txtArriba = createTextFieldControl(); txtArriba.setBounds(xT1, 45, 80, 25); panelControles.add(txtArriba);
-        panelControles.add(createLabelCyber("Abajo:", COLOR_TEXT_LIGHT)).setBounds(xL1, 80, 90, 25); txtAbajo = createTextFieldControl(); txtAbajo.setBounds(xT1, 80, 80, 25); panelControles.add(txtAbajo);
-        panelControles.add(createLabelCyber("Izquierda:", COLOR_TEXT_LIGHT)).setBounds(xL1, 115, 90, 25); txtIzquierda = createTextFieldControl(); txtIzquierda.setBounds(xT1, 115, 80, 25); panelControles.add(txtIzquierda);
-        panelControles.add(createLabelCyber("Derecha:", COLOR_TEXT_LIGHT)).setBounds(xL1, 150, 90, 25); txtDerecha = createTextFieldControl(); txtDerecha.setBounds(xT1, 150, 80, 25); panelControles.add(txtDerecha);
+        int xL1 = 25, xT1 = 125, xL2 = 245, xT2 = 355;
+        
+        panelControles.add(createLabelCyber("Arriba:", COLOR_TEXT_LIGHT)).setBounds(xL1, 55, 90, 25); 
+        txtArriba = createTextFieldControl(); txtArriba.setBounds(xT1, 55, 80, 25); panelControles.add(txtArriba);
+        
+        panelControles.add(createLabelCyber("Abajo:", COLOR_TEXT_LIGHT)).setBounds(xL1, 100, 90, 25); 
+        txtAbajo = createTextFieldControl(); txtAbajo.setBounds(xT1, 100, 80, 25); panelControles.add(txtAbajo);
+        
+        panelControles.add(createLabelCyber("Izquierda:", COLOR_TEXT_LIGHT)).setBounds(xL1, 145, 90, 25); 
+        txtIzquierda = createTextFieldControl(); txtIzquierda.setBounds(xT1, 145, 80, 25); panelControles.add(txtIzquierda);
+        
+        panelControles.add(createLabelCyber("Derecha:", COLOR_TEXT_LIGHT)).setBounds(xL1, 190, 90, 25); 
+        txtDerecha = createTextFieldControl(); txtDerecha.setBounds(xT1, 190, 80, 25); panelControles.add(txtDerecha);
 
-        panelControles.add(createLabelCyber("Saltar:", COLOR_TEXT_LIGHT)).setBounds(xL2, 45, 90, 25); txtSaltar = createTextFieldControl(); txtSaltar.setBounds(xT2, 45, 100, 25); panelControles.add(txtSaltar);
-        panelControles.add(createLabelCyber("Atacar:", COLOR_TEXT_LIGHT)).setBounds(xL2, 80, 90, 25); txtAtacar = createTextFieldControl(); txtAtacar.setBounds(xT2, 80, 100, 25); panelControles.add(txtAtacar);
-        panelControles.add(createLabelCyber("Inventario:", COLOR_TEXT_LIGHT)).setBounds(xL2, 115, 90, 25); txtInventario = createTextFieldControl(); txtInventario.setBounds(xT2, 115, 100, 25); panelControles.add(txtInventario);
-        panelControles.add(createLabelCyber("Pausa:", COLOR_TEXT_LIGHT)).setBounds(xL2, 150, 90, 25); txtPausa = createTextFieldControl(); txtPausa.setBounds(xT2, 150, 100, 25); panelControles.add(txtPausa);
+        panelControles.add(createLabelCyber("Saltar:", COLOR_TEXT_LIGHT)).setBounds(xL2, 55, 90, 25); 
+        txtSaltar = createTextFieldControl(); txtSaltar.setBounds(xT2, 55, 100, 25); panelControles.add(txtSaltar);
+        
+        panelControles.add(createLabelCyber("Atacar:", COLOR_TEXT_LIGHT)).setBounds(xL2, 100, 90, 25); 
+        txtAtacar = createTextFieldControl(); txtAtacar.setBounds(xT2, 100, 100, 25); panelControles.add(txtAtacar);
+        
+        panelControles.add(createLabelCyber("Inventario:", COLOR_TEXT_LIGHT)).setBounds(xL2, 145, 90, 25); 
+        txtInventario = createTextFieldControl(); txtInventario.setBounds(xT2, 145, 100, 25); panelControles.add(txtInventario);
+        
+        panelControles.add(createLabelCyber("Pausa:", COLOR_TEXT_LIGHT)).setBounds(xL2, 190, 90, 25); 
+        txtPausa = createTextFieldControl(); txtPausa.setBounds(xT2, 190, 100, 25); panelControles.add(txtPausa);
 
         btnRestaurarPredeterminados = createBotonCyberEspecial("🔄 PREDETERMINADOS", COLOR_CYAN);
-        btnRestaurarPredeterminados.setBounds(20, 205, 200, 35);
+        btnRestaurarPredeterminados.setBounds(20, 290, 210, 40);
         btnRestaurarPredeterminados.addActionListener(e -> accionRestaurarPredeterminados());
         panelControles.add(btnRestaurarPredeterminados);
 
-        btnGuardarCambios = createBotonCyberEspecial("💾 GUARDAR CONFIGURACIÓN", COLOR_MAGENTA);
-        btnGuardarCambios.setBounds(240, 205, 210, 35);
+        btnGuardarCambios = createBotonCyberEspecial("💾 GUARDAR CAMBIOS", COLOR_MAGENTA);
+        btnGuardarCambios.setBounds(245, 290, 215, 40);
         btnGuardarCambios.addActionListener(e -> accionGuardarCambios());
         panelControles.add(btnGuardarCambios);
 
-
-        // --- COLUMNA DERECHA (TECLADO VIRTUAL NEÓN) ---
+        // --- COLUMNA DERECHA ---
         JPanel panelTeclado = createContenedorCyber(COLOR_CYAN);
-        panelTeclado.setBounds(515, 50, 485, 510);
+        panelTeclado.setBounds(515, 50, 485, 460);
         panelPrincipal.add(panelTeclado);
 
-        JLabel lblTecladoTitulo = new JLabel("⌨️ MONITOR DE ENTORNO // VISTA DE HARDWARE");
+        JLabel lblTecladoTitulo = new JLabel("⌨️ MONITOR DE HARDWARE Y MAPEADO");
         lblTecladoTitulo.setFont(pixelFont);
         lblTecladoTitulo.setForeground(COLOR_CYAN);
         lblTecladoTitulo.setBounds(15, 10, 400, 20);
@@ -215,36 +206,42 @@ public class ConfiguracionVenta extends JDialog {
         construirTecladoFisicoUI(panelTeclado);
     }
 
-    /**
-     * Dibuja los botones simulando la matriz de un teclado QWERTY estándar.
-     */
+    private void cerrarVentanaLimpio() {
+        try {
+            ReproducirSonido.asignarVolumen(0.0);
+        } catch (Exception ignored) {}
+
+        if (getOwner() != null) {
+            getOwner().setEnabled(true);
+            getOwner().toFront();
+        }
+        
+        this.setVisible(false);
+        this.dispose();
+    }
+
     private void construirTecladoFisicoUI(JPanel contenedor) {
-        // Fila 1
         String[] f1 = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"};
         int xStart = 20, yStart = 50, btnSize = 40, gap = 5;
 
         for (int i = 0; i < f1.length; i++) {
             crearTecla(f1[i], xStart + i * (btnSize + gap), yStart, btnSize, btnSize, contenedor);
         }
-        // Fila 2 (QWERTY)
         String[] f2 = {"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"};
-        int xF2 = xStart + 15; // Desfase típico de teclado
+        int xF2 = xStart + 15;
         for (int i = 0; i < f2.length; i++) {
             crearTecla(f2[i], xF2 + i * (btnSize + gap), yStart + 45, btnSize, btnSize, contenedor);
         }
-        // Fila 3 (ASDF)
         String[] f3 = {"A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"};
         int xF3 = xStart + 25;
         for (int i = 0; i < f3.length; i++) {
             crearTecla(f3[i], xF3 + i * (btnSize + gap), yStart + 90, btnSize, btnSize, contenedor);
         }
-        // Fila 4 (ZXCV)
         String[] f4 = {"Z", "X", "C", "V", "B", "N", "M"};
         int xF4 = xStart + 35;
         for (int i = 0; i < f4.length; i++) {
             crearTecla(f4[i], xF4 + i * (btnSize + gap), yStart + 135, btnSize, btnSize, contenedor);
         }
-        // Fila 5: Barra Espaciadora
         crearTecla("ESPACIO", xStart + 90, yStart + 180, 250, 35, contenedor);
     }
 
@@ -255,14 +252,13 @@ public class ConfiguracionVenta extends JDialog {
                 Graphics2D g2d = (Graphics2D) g.create();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 
-                // Si el botón está marcado con el color Cyan, es una tecla activa/resaltada
                 if (getForeground() == COLOR_CYAN) {
-                    g2d.setColor(new Color(0, 100, 120, 200)); // Fondo neón opaco
+                    g2d.setColor(new Color(0, 100, 120, 200)); 
                     g2d.fillRect(0, 0, getWidth(), getHeight());
                     g2d.setColor(COLOR_CYAN);
                     g2d.setStroke(new BasicStroke(2.0f));
                 } else {
-                    g2d.setColor(COLOR_KEY_DEFAULT); // Fondo apagado por defecto
+                    g2d.setColor(COLOR_KEY_DEFAULT); 
                     g2d.fillRect(0, 0, getWidth(), getHeight());
                     g2d.setColor(new Color(40, 70, 100));
                     g2d.setStroke(new BasicStroke(1.0f));
@@ -280,19 +276,14 @@ public class ConfiguracionVenta extends JDialog {
         btnTecla.setBounds(x, y, w, h);
         
         panel.add(btnTecla);
-        mapaBotonesTeclado.put(llave.toUpperCase(), btnTecla); // Registrar en el inventario de teclas
+        mapaBotonesTeclado.put(llave.toUpperCase(), btnTecla); 
     }
 
-    /**
-     * Revisa el texto actual de los inputs y enciende las teclas correspondientes en la interfaz gráfica
-     */
     private void actualizarLucesTeclado() {
-        // 1. Apagar todas primero
         for (JButton btn : mapaBotonesTeclado.values()) {
             btn.setForeground(COLOR_TEXT_LIGHT);
         }
 
-        // 2. Encender sólo las que están escritas en los campos de texto
         String[] llavesAEncender = {
             txtArriba.getText().trim().toUpperCase(),
             txtAbajo.getText().trim().toUpperCase(),
@@ -310,7 +301,6 @@ public class ConfiguracionVenta extends JDialog {
             }
         }
         
-        // Redibujar el contenedor del teclado para aplicar cambios visuales
         if (!mapaBotonesTeclado.isEmpty()) {
             mapaBotonesTeclado.values().iterator().next().getParent().repaint();
         }
@@ -340,36 +330,38 @@ public class ConfiguracionVenta extends JDialog {
                 ReproducirSonido.asignarVolumen(slVolumenGeneral.getValue() / 100.0);
             }
         });
-        slMusica.addChangeListener(e -> ((JLabel)((JPanel)getContentPane().getComponent(1)).getComponent(6)).setText(slMusica.getValue() + "%"));
-        slEfectos.addChangeListener(e -> ((JLabel)((JPanel)getContentPane().getComponent(1)).getComponent(9)).setText(slEfectos.getValue() + "%"));
     }
 
     private void accionGuardarCambios() {
+        // Mantiene la compatibilidad con el controlador enviando RadioButtons vacíos en los campos quitados
         boolean exito = controller.recolectarYGuardar(
-            idUsuarioActual, slVolumenGeneral, rbPequeno, rbGrande, 
+            idUsuarioActual, slVolumenGeneral, new JRadioButton(), new JRadioButton(), 
             txtArriba, txtAbajo, txtIzquierda, txtDerecha, txtSaltar, txtAtacar, txtInventario, txtPausa
         );
 
         if (exito) {
             JOptionPane.showMessageDialog(this, "Configuración grabada con éxito en la BD.", "CORE STATUS", JOptionPane.INFORMATION_MESSAGE);
+            ImpresoraTicket.imprimirConfiguracion(idUsuarioActual);
         } else {
             JOptionPane.showMessageDialog(this, "Error crítico. Sentencia SQL rechazada.", "CORE ERROR", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void accionRestaurarPredeterminados() {
-        slVolumenGeneral.setValue(80); slMusica.setValue(70); slEfectos.setValue(90);
-        rbMediano.setSelected(true);
+        slVolumenGeneral.setValue(80);
         txtArriba.setText("W"); txtAbajo.setText("S"); txtIzquierda.setText("A"); txtDerecha.setText("D");
         txtSaltar.setText("ESPACIO"); txtAtacar.setText("J"); txtInventario.setText("I"); txtPausa.setText("P");
         
         ReproducirSonido.asignarVolumen(0.80);
         actualizarLucesTeclado();
-        controller.recolectarYGuardar(idUsuarioActual, slVolumenGeneral, rbPequeno, rbGrande, txtArriba, txtAbajo, txtIzquierda, txtDerecha, txtSaltar, txtAtacar, txtInventario, txtPausa);
+        
+        controller.recolectarYGuardar(
+            idUsuarioActual, slVolumenGeneral, new JRadioButton(), new JRadioButton(), 
+            txtArriba, txtAbajo, txtIzquierda, txtDerecha, txtSaltar, txtAtacar, txtInventario, txtPausa
+        );
     }
 
-    // --- MÉTODOS AUXILIARES DE ESTILIZADO DE COMPONENTES ---
-
+    // --- MÉTODOS AUXILIARES ---
     private JButton createBotonCyberEspecial(String texto, Color colorNeon) {
         JButton btn = new JButton(texto) {
             @Override
@@ -424,13 +416,6 @@ public class ConfiguracionVenta extends JDialog {
         JSlider slider = new JSlider(0, 100);
         slider.setBackground(COLOR_BG_DARK); slider.setForeground(COLOR_CYAN); slider.setOpaque(false);
         return slider;
-    }
-
-    private JRadioButton createRadioCyber(String texto, Color colorNeon) {
-        JRadioButton rb = new JRadioButton(texto);
-        rb.setFont(pixelFont); rb.setBackground(COLOR_BG_DARK); rb.setForeground(colorNeon);
-        rb.setFocusPainted(false); rb.setOpaque(false);
-        return rb;
     }
 
     private JTextField createTextFieldControl() {
